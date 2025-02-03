@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block static_files %}
+    <link rel="stylesheet" href="{% static 'dashboard/styles/styles.css' %}">
+    <script src="{% static 'dashboard/scripts/scripts.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Default Widgets -->
+{% for widget in default_widgets %}
+    <div class="widget" id="{{ widget.widget_type }}" 
+        style="left: {{ widget.position.x }}px; top: {{ widget.position.y }}px;" 
+        draggable="true">
+        
+        <h3>{{ widget.title }}</h3>
+        {% include widget.template %}
+    </div>
+{% endfor %}
+
+<!-- User Widgets -->
+{% for widget in widgets %}
+    <div class="widget" id="widget-{{ widget.id }}" 
+        style="left: {{ widget.position.x }}px; top: {{ widget.position.y }}px;" 
+        draggable="true">
+        
+        <h3>{{ widget.widget_type }}</h3>
+        {% include widget.template %}
+    </div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,16 @@
+{% load static %}
+
+<head>
+    <link rel="stylesheet" href = {% static 'dashboard/styles/todo.css' %}>
+    <script src="{% static 'dashboard/scripts/todo.js' %}"></script>
+</head>
+
+<div class="todo-widget">
+    <h3>To-Do List</h3>
+    <ul id="todo-list"></ul>
+
+    <input type="text" id="todo-input" placeholder="New task..." />
+    <button onclick="addTodo()">Add</button>
+</div>
+
+
