@@ -24,10 +24,11 @@
 <!-- User Widgets -->
 {% for widget in widgets %}
     <div class="widget" id="widget-{{ widget.id }}" 
-        style="left: {{ widget.position.x }}px; top: {{ widget.position.y }}px;" 
-        draggable="true">
-        
-        <h3>{{ widget.widget_type }}</h3>
+        style="left: {{ widget.position.x }}px; top: {{ widget.position.y }}px;">
+
+        <!-- Drag Icon -->
+        <div class="drag-handle">&#x2195;&#x2194;</div> 
+
         {% include widget.template %}
     </div>
 {% endfor %}

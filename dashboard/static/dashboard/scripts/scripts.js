@@ -50,7 +50,7 @@ function saveWidgetPosition(widgetId, left, top) {
         y: parseInt(top),
     });
 
-    console.log("🔹 Sending request:", requestBody);
+    console.log("Sending request:", requestBody);
 
     fetch("/dashboard/save-widget-position/", {
         method: "POST",
@@ -61,6 +61,6 @@ function saveWidgetPosition(widgetId, left, top) {
         body: requestBody,
     })
     .then(response => response.json())
-    .then(data => console.log("🔹 Position saved:", data))
-    .catch(error => console.error("🔴 Error saving position:", error));
+    .then(data => console.log("Position saved:", data))
+    .catch(error => console.error("Error saving position:", error));
 }
