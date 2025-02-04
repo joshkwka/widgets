@@ -3,7 +3,6 @@ WIDGETS = {
         "title": "Clock",
         "template": "dashboard/widgets/clock.html",
         "default_config": {"format": "24h", "timezone": "UTC"},
-        "position": {"x": 300, "y": 200}
     },
     # "weather": {
     #     "title": "Weather",

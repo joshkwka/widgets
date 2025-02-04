@@ -51,15 +51,33 @@ def save_widget_position(request):
             if not widget_id or x is None or y is None:
                 raise ValueError("Missing required fields: widget_id, x, or y")
 
-            logger.info(f"🔹 Received widget move request: ID={widget_id}, x={x}, y={y}")
+            logger.info(f"Received widget move request: ID={widget_id}, x={x}, y={y}")
             return JsonResponse({"status": "success"})
 
         except json.JSONDecodeError as e:
-            logger.error(f"🔴 JSON Decode Error: {str(e)}")
+            logger.error(f"JSON Decode Error: {str(e)}")
             return JsonResponse({"status": "error", "message": "Invalid JSON format"}, status=400)
 
         except Exception as e:
-            logger.error(f"🔴 Internal Server Error: {str(e)}")
+            logger.error(f"Internal Server Error: {str(e)}")
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
     return JsonResponse({"status": "error", "message": "Invalid request"}, status=400)
+
+@csrf_protect
+def save_widget_size(request):
+    if request.method == "POST" and request.user.is_authenticated:
+        data = json.loads(request.body)
+        widget_id = data.get("widget_id").replace("widget-", "")
+        new_width = data.get("width")
+        new_height = data.get("height")
+
+        try:
+            widget = Widget.objects.get(id=int(widget_id), user=request.user)
+            widget.size = {"width": new_width, "height": new_height}
+            widget.save()
+            return JsonResponse({"status": "success"})
+        except Widget.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Widget not found"}, status=404)
+
+    return JsonResponse({"status": "error"}, status=400)

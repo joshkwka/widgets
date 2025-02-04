@@ -1,9 +1,6 @@
 {% load static %}
 
-<head>
-    <link rel="stylesheet" href = {% static 'dashboard/styles/clock.css' %}>
-    <script src="{% static 'dashboard/scripts/clock.js' %}"></script>
-</head>
-
-<p id="clock">Loading...</p>
-
+<div class="clock-widget">
+    <h3>Time:</h3>
+    <p id="clock-data">Loading...</p>
+</div>
