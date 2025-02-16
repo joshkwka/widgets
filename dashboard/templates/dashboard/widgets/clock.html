@@ -1,6 +1,31 @@
 {% load static %}
 
+<head>
+    <link rel="stylesheet" href="{% static 'dashboard/styles/clock.css' %}">
+    <script src="{% static 'dashboard/scripts/clock.js' %}" defer></script>
+</head>
+
 <div class="clock-widget">
-    <h3>Time:</h3>
-    <p id="clock-data">Loading...</p>
+    <div class="clock-header">
+        <h3>World Clock</h3>
+        <button id="add-timezone-btn">➕ Add Timezone</button>
+    </div>
+
+    <!-- Digital Clock Container -->
+    <div id="clock-container"></div>
+
+    <!-- Analog Clock -->
+    <div id="analog-clock">
+        <div class="clock-face">
+            <div class="clock-center"></div>
+            <div class="hand hour-hand"></div>
+            <div class="hand minute-hand"></div>
+            <div class="hand second-hand"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="clock-controls">
+        <button id="toggle-mode">Switch to Analog</button>
+    </div>
 </div>

@@ -2,3 +2,6 @@ django>=4.2
 djangorestframework
 psycopg2-binary
 django-allauth
+djangorestframework-simplejwt
+requests
+cryptography

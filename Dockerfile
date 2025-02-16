@@ -12,6 +12,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Node.js and npm (needed for Tailwind)
+RUN apt-get update && apt-get install -y nodejs npm
+
+# Install Tailwind CSS globally
+RUN npm install -g tailwindcss postcss autoprefixer
+
 # Copy the project files
 COPY . .
 

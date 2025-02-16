@@ -7,6 +7,10 @@ from django.views.decorators.csrf import csrf_protect
 import json
 import logging 
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 logger = logging.getLogger(__name__)
 
 def dashboard_home(request):
@@ -81,3 +85,8 @@ def save_widget_size(request):
             return JsonResponse({"status": "error", "message": "Widget not found"}, status=404)
 
     return JsonResponse({"status": "error"}, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def protected_view(request):
+    return Response({"message": "You have access!"})
