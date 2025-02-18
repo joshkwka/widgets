@@ -1,0 +1,14 @@
+.react-calendar {
+    background: var(--widget-bg);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+  }
+  
+  .react-calendar__tile--active {
+    background: var(--primary-blue);
+    color: white;
+    border-radius: 4px;
+  }
+  

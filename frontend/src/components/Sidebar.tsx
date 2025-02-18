@@ -1,39 +1,86 @@
 import { useState } from "react";
 import LayoutSidebar from "./LayoutSidebar";
 import Modal from "./Modal";
+import ModalSettings from "./Settings/ModalSettings";
+import ModalCalendar from "./Calendar/ModalCalendar";
+import ModalProfile from "./Profile/ModalProfile";
 
-const Sidebar = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
-  const [modalContent, setModalContent] = useState("");
+  const [modalContent, setModalContent] = useState<string | null>(null);
+
+  // Function to render the correct modal component
+  const renderModalContent = () => {
+    switch (modalContent) {
+      case "Settings":
+        return <ModalSettings />;
+      case "Calendar":
+        return <ModalCalendar />;
+      case "Profile":
+        return <ModalProfile />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="h-screen w-64 bg-gray-800 text-white flex flex-col p-4">
-      {/* Home Button - Opens Layout Sidebar */}
-      <button
-        className="p-2 my-2 bg-gray-700 hover:bg-gray-600 rounded"
-        onClick={() => setIsLayoutOpen(!isLayoutOpen)}
+    <>
+      {/* Main Sidebar */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 p-4 backdrop-blur-md shadow-lg z-50 transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{
+          backgroundColor: "var(--sidebar-background)",
+          color: "var(--sidebar-foreground)",
+          borderRight: "1px solid var(--border)",
+        }}
       >
-        Home
-      </button>
+        {/* Close Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              toggleSidebar();
+              setIsLayoutOpen(false);
+            }}
+            className="text-[var(--sidebar-foreground)] text-lg hover:text-gray-400 transition"
+          >
+            ✕
+          </button>
+        </div>
 
-      {/* Other Buttons - Open Placeholder Modal */}
-      {["Calendar", "Settings", "Profile"].map((item) => (
+        {/* Home Button - Toggles LayoutSidebar */}
         <button
-          key={item}
-          className="p-2 my-2 bg-gray-700 hover:bg-gray-600 rounded"
-          onClick={() => setModalContent(item)}
+          className="p-2 my-2 rounded transition w-full"
+          onClick={() => setIsLayoutOpen((prev) => !prev)}
         >
-          {item}
+          Home
         </button>
-      ))}
 
-      {/* Additional Sidebar for Layouts */}
-      {isLayoutOpen && <LayoutSidebar />}
+        {/* Other Buttons - Open Specific Modals */}
+        {["Calendar", "Settings", "Profile"].map((item) => (
+          <button
+            key={item}
+            className="p-2 my-2 rounded transition w-full"
+            onClick={() => setModalContent(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
 
-      {/* Modal Popup */}
-      {modalContent && <Modal content={modalContent} onClose={() => setModalContent("")} />}
-    </div>
+      {/* Render LayoutSidebar */}
+      {isOpen && <LayoutSidebar isOpenLayout={isLayoutOpen} />}
+
+      {/* Render the selected modal */}
+      <Modal isOpen={!!modalContent} onClose={() => setModalContent(null)} title={modalContent || ""}>
+        {renderModalContent()}
+      </Modal>
+    </>
   );
-};
-
-export default Sidebar;
+}
