@@ -1,23 +1,14 @@
-import { useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import LoginModal from "./components/LoginModal";
+import Sidebar from "./components/Sidebar";
 
 function App() {
-  const [showLogin, setShowLogin] = useState(false);
-
   return (
-    <Router>
-      <nav className="p-4 bg-gray-800 text-white">
-        <ul className="flex space-x-4">
-          <li><Link to="/">Home</Link></li>
-          <li><button onClick={() => setShowLogin(true)}>Login</button></li>
-        </ul>
-      </nav>
-      <Routes>
-        <Route path="/" element={<h1 className="text-center text-3xl mt-10">Welcome</h1>} />
-      </Routes>
-      {showLogin && <LoginModal />}
-    </Router>
+    <div className="flex">
+      <Sidebar />
+      <div className="flex-1 p-10">
+        <h1 className="text-3xl font-bold">Widgets</h1>
+        <p className="text-gray-600">More content to be added.</p>
+      </div>
+    </div>
   );
 }
 

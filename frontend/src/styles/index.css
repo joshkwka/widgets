@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-color: #fdfcfc; 
+  --foreground: #252525;
+  --border: #e0e0e0;
+  --sidebar-background: #d2deea56; 
+  --sidebar-background: #deebf756; 
+  --sidebar-foreground: #252525;
+  --sidebar-hover-background: #d2deeaa4;
+  --text-light: #e0e0e0; 
+  --text-dark: #3c4043;
+
+  --widget-bg: #fdfcfc; 
+  --primary-blue: #5c91ff; 
+  --hover-blue: #3b82f6; 
+  --light-blue: #eff5ff; 
+  --hover-text: #ffffff;
+  --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); 
+}
+
+html[data-theme="dark"] {
+  --background: #252525;
+  --foreground: #e0e0e0;
+  --border: #474747;
+  --sidebar-background: #d2deea56;
+  --sidebar-foreground: #e0e0e0;
+  --sidebar-hover-background: #d2deeaa4;
+  --text-light: #e0e0e0; 
+  --text-dark: #3c4043;
+
+  --widget-bg: #252525; 
+  --primary-blue: #5c91ff; 
+  --hover-blue: #3b82f6; 
+  --light-blue: #eff5ff; 
+  --hover-text: #ffffff;
+  --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); 
+}
+
+body {
+  margin: 0;
+  background: var(--background-color);
+  color: var(--text-color);
+  font-family: 'Inter', sans-serif; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, p, a {
+  color: var(--foreground);
+}
+
+a:hover {
+  color: var(--foreground);
+}
