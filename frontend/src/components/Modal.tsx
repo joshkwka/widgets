@@ -25,7 +25,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300">
       {/* Modal Container */}
-      <div className="bg-[var(--widget-bg)] text-[var(--foreground)] p-6 rounded-lg shadow-lg w-96 max-w-full transform transition-all duration-300 ease-in-out scale-95">
+      <div className="bg-[var(--widget-bg)] text-[var(--foreground)] p-6 rounded-lg shadow-lg w-100 max-w-full transform transition-all duration-300 ease-in-out scale-95">
         {/* Modal Header */}
         <div className="flex justify-between items-center">
           {title && <h2 className="text-lg font-semibold">{title}</h2>}
