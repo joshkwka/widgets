@@ -4,6 +4,7 @@ import Modal from "./Modal";
 import ModalSettings from "./Settings/ModalSettings";
 import ModalCalendar from "./Calendar/ModalCalendar";
 import ModalProfile from "./Profile/ModalProfile";
+import ModalLogin from "./Profile/ModalLogin"; // Import the Login Modal
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,6 +15,9 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
   const [modalContent, setModalContent] = useState<string | null>(null);
 
+  // TODO: Replace this with real authentication check from backend
+  const isLoggedIn = false;
+
   // Function to render the correct modal component
   const renderModalContent = () => {
     switch (modalContent) {
@@ -21,8 +25,10 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         return <ModalSettings />;
       case "Calendar":
         return <ModalCalendar />;
+      case "Login":
+        return <ModalLogin onLogin={() => setModalContent("Profile")} />;
       case "Profile":
-        return <ModalProfile />;
+        return <ModalProfile isOpen={!!modalContent} onClose={() => setModalContent(null)} />;
       default:
         return null;
     }
@@ -63,24 +69,37 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         </button>
 
         {/* Other Buttons - Open Specific Modals */}
-        {["Calendar", "Settings", "Profile"].map((item) => (
-          <button
-            key={item}
-            className="p-2 my-2 rounded transition w-full"
-            onClick={() => setModalContent(item)}
-          >
-            {item}
-          </button>
-        ))}
+        <button
+          className="p-2 my-2 rounded transition w-full"
+          onClick={() => setModalContent("Calendar")}
+        >
+          Calendar
+        </button>
+        <button
+          className="p-2 my-2 rounded transition w-full"
+          onClick={() => setModalContent("Settings")}
+        >
+          Settings
+        </button>
+
+        {/* Login/Profile Button - Changes Based on `isLoggedIn` */}
+        <button
+          className="p-2 my-2 rounded transition w-full"
+          onClick={() => setModalContent(isLoggedIn ? "Profile" : "Login")}
+        >
+          {isLoggedIn ? "Profile" : "Login"}
+        </button>
       </div>
 
       {/* Render LayoutSidebar */}
       {isOpen && <LayoutSidebar isOpenLayout={isLayoutOpen} />}
 
       {/* Render the selected modal */}
-      <Modal isOpen={!!modalContent} onClose={() => setModalContent(null)} title={modalContent || ""}>
-        {renderModalContent()}
-      </Modal>
+      {modalContent && (
+        <Modal isOpen={!!modalContent} onClose={() => setModalContent(null)} title={modalContent || ""}>
+          {renderModalContent()}
+        </Modal>
+      )}
     </>
   );
 }
