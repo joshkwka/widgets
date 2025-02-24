@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { forgotPassword } from "../../../api/auth"; // New function in auth.ts
+import { forgotPassword } from "../../../api/auth";
 
 interface ForgotPasswordFormProps {
     onToggle: () => void;

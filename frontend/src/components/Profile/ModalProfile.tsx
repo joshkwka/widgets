@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import Modal from "../Modal";
 import ModalLogin from "./ModalLogin";
 import ModalProfileDetails from "./ModalProfileDetails";
-import { fetchUserProfile, logoutUser } from "../../api/auth";
+import { logoutUser } from "../../api/auth";
+import { useAuth } from "../../context/AuthContext";
 
 interface ModalProfileProps {
   isOpen: boolean;
@@ -10,36 +11,30 @@ interface ModalProfileProps {
 }
 
 const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<{ first_name: string; email: string } | null>(null);
+  const { isLoggedIn, user, setIsLoggedIn, setUser } = useAuth();
   const [view, setView] = useState<"profile" | "login" | "details">("profile");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const response = await fetchUserProfile();
-          setUser(response.data);
-          setIsLoggedIn(true);
-        } catch {
-          setIsLoggedIn(false);
-          setUser(null);
-        }
-      }
-    };
-    if (isOpen) checkAuth();
-  }, [isOpen]);
+    console.log("ModalProfile: isLoggedIn changed:", isLoggedIn);
+    console.log("ModalProfile: User updated:", user);
+    
+    if (isLoggedIn) {
+      setView("profile");
+    } else {
+      setView("login");
+    }
+  }, [isLoggedIn, user]);  
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     setIsLoggedIn(false);
     setUser(null);
+    setView("login");
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={view === "login" ? "Log In" : view === "details" ? "Profile Details" : "Profile"}>
+    <Modal isOpen={isOpen} onClose={onClose} key={isLoggedIn ? "loggedIn" : "loggedOut"}>
       {view === "profile" && isLoggedIn ? (
         <div className="flex flex-col items-center space-y-4">
           <p className="text-lg">Welcome, {user?.first_name}!</p>
@@ -56,7 +51,7 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
           Log In
         </button>
       ) : view === "login" ? (
-        <ModalLogin onClose={() => setView("profile")} onLogin={() => { setIsLoggedIn(true); setView("profile"); }} />
+        <ModalLogin onClose={() => setView("profile")} />
       ) : view === "details" ? (
         <ModalProfileDetails onClose={() => setView("profile")} />
       ) : null}

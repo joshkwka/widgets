@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 import hashlib
 import uuid
 from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:3000"
@@ -130,7 +132,13 @@ class RegistrationView(APIView):
     def post(self, request, format=None):
         request.data["email"] = request.data["email"].lower().strip()  
         request.data["password"] = make_password(request.data["password"])  
+
+        first_name = request.data.get("first_name", "").strip()
+        last_name = request.data.get("last_name", "").strip()
         
+        if not first_name or not last_name:
+            return Response({"success": False, "message": "First and last name are required!"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -166,6 +174,33 @@ class LoginView(APIView):
                 "message": "You are now logged in!",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
+                "user": {  
+                    "first_name": user.first_name or "User",
+                    "last_name": user.last_name or "",
+                    "email": user.email
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ProfileView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        if not request.user.is_authenticated:
+            return Response({"success": False, "message": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(
+            {
+                "success": True,
+                "message": "User profile fetched successfully!",
+                "user": {
+                    "first_name": request.user.first_name,
+                    "last_name": request.user.last_name,
+                    "email": request.user.email,
+                },
             },
             status=status.HTTP_200_OK,
         )

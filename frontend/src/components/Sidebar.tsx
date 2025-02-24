@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       case "Calendar":
         return <ModalCalendar />;
       case "Login":
-        return <ModalLogin onClose={() => setModalContent(null)} onLogin={() => setModalContent("Profile")} />;
+        return <ModalLogin onClose={() => setModalContent(null)} />;
       case "Profile":
         return <ModalProfile isOpen={modalContent === "Profile"} onClose={() => setModalContent(null)} />;
       default:
