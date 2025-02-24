@@ -139,6 +139,10 @@ class RegistrationView(APIView):
         if not first_name or not last_name:
             return Response({"success": False, "message": "First and last name are required!"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Check if email is already used
+        if User.objects.filter(email=request.data["email"]).exists():
+            return Response({"success": False, "message": "Email is already registered!"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -151,6 +155,7 @@ class RegistrationView(APIView):
                 {"success": False, "message": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
 
 
 
