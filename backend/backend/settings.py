@@ -13,6 +13,7 @@ DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
+FRONTEND_URL = "http://localhost:3000"
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "True") == "True"
 
@@ -24,6 +25,7 @@ TIME_ZONE = 'Asia/Kolkata'
 EMAIL_HOST_USER = os.getenv("eml", "default@gmail.com")  
 EMAIL_HOST_PASSWORD = os.getenv("app-pwd", "default-app-password")  
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -86,7 +88,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'api/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

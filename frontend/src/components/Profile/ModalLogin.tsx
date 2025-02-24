@@ -28,9 +28,11 @@ const ModalLogin = ({ onClose }: ModalLoginProps) => {
         <LoginForm onToggle={() => setView("register")} onLogin={handleLoginSuccess} />
       )}
       {view === "login" && (
-        <button className="text-blue-500 hover:underline mt-2" onClick={() => setView("forgot")}>
-          Forgot Password?
-        </button>
+        <div className="flex justify-center">
+          <button className="text-blue-500 hover:underline mt-2" onClick={() => setView("forgot")}>
+            Forgot Password?
+          </button>
+        </div>
       )}
     </div>
   );

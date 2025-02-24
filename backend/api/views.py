@@ -126,36 +126,69 @@ class ForgotPasswordView(APIView):
         )
 
 
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.template.loader import render_to_string
 
+from django.contrib.auth.tokens import default_token_generator
 
 class RegistrationView(APIView):
-    def post(self, request, format=None):
-        request.data["email"] = request.data["email"].lower().strip()  
-        request.data["password"] = make_password(request.data["password"])  
-
-        first_name = request.data.get("first_name", "").strip()
-        last_name = request.data.get("last_name", "").strip()
-        
-        if not first_name or not last_name:
-            return Response({"success": False, "message": "First and last name are required!"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if email is already used
-        if User.objects.filter(email=request.data["email"]).exists():
-            return Response({"success": False, "message": "Email is already registered!"}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        print("Received Registration Data:", request.data)  
 
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "You are now registered!"},
-                status=status.HTTP_201_CREATED,
-            )
-        else:
-            return Response(
-                {"success": False, "message": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            try:
+                user = serializer.save()
+                user.is_active = False  # Prevent login until email is verified
+                user.save()
 
+                # Generate verification token
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                verification_link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+
+                # Send email
+                subject = "Verify Your Account"
+                message = render_to_string('email_verification.html', {
+                    'user': user,
+                    'verification_link': verification_link
+                })
+
+                print("Sending email to:", user.email)  
+
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[user.email],
+                    html_message=message
+                )
+
+                return Response({"success": True, "message": "Verification email sent. Please check your inbox."}, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                print(f"ERROR DURING USER CREATION: {e}")  
+                return Response({"success": False, "message": f"Internal Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        print("Serializer Errors:", serializer.errors)  
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyEmailView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"success": False, "message": "Invalid verification link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({"success": True, "message": "Email verified successfully!"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"success": False, "message": "Invalid or expired verification link."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
