@@ -1,0 +1,27 @@
+.react-calendar__tile--active {
+  background: var(--primary-blue);
+  color: white;
+  border-radius: 4px;
+}
+
+.react-calendar__tile:hover {
+  border-radius: 4px;
+}
+
+.today-highlight {
+  background-color: #e5e5e5 !important;
+  border-radius: 10px !important;
+  font-weight: bold;
+}
+
+.today-highlight {
+  background-color: #e5e5e5 !important;
+  border-radius: 10px !important;
+  font-weight: bold;
+}
+
+.selected-date {
+  background-color: var(--light-blue) !important;
+  border-radius: 10px !important;
+  font-weight: bold;
+}
