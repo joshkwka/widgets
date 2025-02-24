@@ -3,16 +3,17 @@ import LoginForm from "./Forms/LoginForm";
 import RegisterForm from "./Forms/RegisterForm";
 
 interface ModalLoginProps {
+  onClose: () => void;
   onLogin: () => void;
 }
 
-const ModalLogin = ({ onLogin }: ModalLoginProps) => {
+const ModalLogin = ({ onClose, onLogin }: ModalLoginProps) => {
   const [isRegistering, setIsRegistering] = useState(false);
 
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div>
       {isRegistering ? (
-        <RegisterForm onToggle={() => setIsRegistering(false)} />
+        <RegisterForm onToggle={() => setIsRegistering(false)} onRegister={onLogin} />
       ) : (
         <LoginForm onToggle={() => setIsRegistering(true)} onLogin={onLogin} />
       )}

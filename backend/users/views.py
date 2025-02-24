@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,11 +8,15 @@ from rest_framework import status
 from .serializers import UserSerializer
 import json
 
+User = get_user_model()  
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         print("Incoming registration request:", json.dumps(request.data, indent=2))  # Debugging
+
+        username = request.data.get("username")
         email = request.data.get("email")
         password = request.data.get("password")
         first_name = request.data.get("first_name")
@@ -26,13 +30,25 @@ class RegisterView(APIView):
             print("Email already exists")  # Debugging
             return Response({"error": "Email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=email, email=email, password=password, first_name=first_name, last_name=last_name)
-        refresh = RefreshToken.for_user(user)
-        print("User created successfully")  # Debugging
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }, status=status.HTTP_201_CREATED)
+        try:
+            user = User.objects.create_user(
+                username=username,  
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+            refresh = RefreshToken.for_user(user)
+            print("User created successfully")  # Debugging
+            return Response({
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": UserSerializer(user).data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"Error creating user: {e}")  # Debugging
+            return Response({"error": "Registration failed. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class LoginView(APIView):
     permission_classes = [AllowAny]

@@ -1,20 +1,16 @@
 interface ModalProfileDetailsProps {
-    onLogout: () => void;
-  }
-  
-  const ModalProfileDetails = ({ onLogout }: ModalProfileDetailsProps) => {
-    return (
-      <div className="flex flex-col items-center space-y-4">
-        <p className="text-[var(--text-dark)]">Welcome, User!</p>
-        <button
-          className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-          onClick={onLogout}
-        >
-          Log Out
-        </button>
-      </div>
-    );
-  };
-  
-  export default ModalProfileDetails;
-  
+  onClose: () => void;
+}
+
+const ModalProfileDetails = ({ onClose }: ModalProfileDetailsProps) => {
+  return (
+    <div className="flex flex-col items-center space-y-4">
+      <p className="text-lg">This is the profile details modal.</p>
+      <button className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" onClick={onClose}>
+        Back
+      </button>
+    </div>
+  );
+};
+
+export default ModalProfileDetails;
