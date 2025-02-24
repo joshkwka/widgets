@@ -4,7 +4,8 @@ import Modal from "./Modal";
 import ModalSettings from "./Settings/ModalSettings";
 import ModalCalendar from "./Calendar/ModalCalendar";
 import ModalProfile from "./Profile/ModalProfile";
-import ModalLogin from "./Profile/ModalLogin"; // Import the Login Modal
+import ModalLogin from "./Profile/ModalLogin"; 
+import { useAuth } from "../context/AuthContext"; 
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [modalContent, setModalContent] = useState<string | null>(null);
 
   // TODO: Replace this with real authentication check from backend
-  const isLoggedIn = false;
+  const { isLoggedIn } = useAuth();
 
   // Function to render the correct modal component
   const renderModalContent = () => {

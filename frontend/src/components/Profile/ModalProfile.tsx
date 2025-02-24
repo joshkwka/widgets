@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import Modal from "../Modal";
 import ModalLogin from "./ModalLogin";
 import ModalProfileDetails from "./ModalProfileDetails";
 import { logoutUser } from "../../api/auth";
@@ -24,6 +23,8 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
       setView("login");
     }
   }, [isLoggedIn, user]);  
+  console.log("Rendering ModalProfile: isLoggedIn =", isLoggedIn, "User =", user, "Current View =", view);
+
 
   const handleLogout = async () => {
     await logoutUser();
@@ -34,7 +35,7 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} key={isLoggedIn ? "loggedIn" : "loggedOut"}>
+    <div>
       {view === "profile" && isLoggedIn ? (
         <div className="flex flex-col items-center space-y-4">
           <p className="text-lg">Welcome, {user?.first_name}!</p>
@@ -55,7 +56,7 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
       ) : view === "details" ? (
         <ModalProfileDetails onClose={() => setView("profile")} />
       ) : null}
-    </Modal>
+    </div>
   );
 };
 

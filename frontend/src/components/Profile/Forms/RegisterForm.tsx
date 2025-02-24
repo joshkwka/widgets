@@ -10,7 +10,7 @@ const RegisterForm = ({ onToggle }: { onToggle: () => void }) => {
 
     const handleRegister = async () => {
         try {
-            await registerUser(email, password, firstName, lastName);
+            await registerUser(firstName, lastName, email, password);
             alert("Check your email for a verification link.");
         } catch {
             setError("Registration failed. Try again.");
