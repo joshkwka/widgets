@@ -7,16 +7,15 @@ interface RegisterFormProps {
 }
 
 const RegisterForm = ({ onToggle, onRegister }: RegisterFormProps) => {
-    const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
     const handleRegister = async () => {
         try {
-            await registerUser(username, email, password, firstName, lastName);
+            await registerUser(email, password, firstName, lastName);
             onRegister();
         } catch (err) {
             setError("Registration failed. Try again.");
@@ -25,13 +24,6 @@ const RegisterForm = ({ onToggle, onRegister }: RegisterFormProps) => {
 
     return (
         <div className="flex flex-col items-center space-y-4">
-            <input
-                type="text"
-                placeholder="User Name"
-                className="p-2 border rounded w-full"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-            />
             <input
                 type="text"
                 placeholder="First Name"

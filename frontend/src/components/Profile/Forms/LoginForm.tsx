@@ -7,27 +7,27 @@ interface LoginFormProps {
 }
 
 const LoginForm = ({ onToggle, onLogin }: LoginFormProps) => {
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
     const handleLogin = async () => {
         try {
-            await loginUser(username, password);
+            await loginUser(email, password);
             onLogin();
         } catch (err) {
-            setError("Invalid username or password");
+            setError("Invalid email or password");
         }
     };
 
     return (
         <div className="flex flex-col items-center space-y-4">
             <input
-                type="username"
-                placeholder="Username"
+                type="email"
+                placeholder="Email"
                 className="p-2 border rounded w-full"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
             />
             <input
                 type="password"
