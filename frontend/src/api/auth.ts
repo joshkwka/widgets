@@ -20,29 +20,45 @@ interface AuthResponse {
 export const refreshAccessToken = async (): Promise<string | null> => {
     try {
         const refreshToken = Cookies.get("refresh_token");
-        if (!refreshToken) throw new Error("No refresh token found");
+
+        if (!refreshToken) {
+            console.error("No refresh token found in cookies.");
+            return null;
+        }
 
         console.log("Refreshing access token...");
-        const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-            refresh: refreshToken,
-        });
+        const response = await axios.post(`${API_BASE_URL}/token/refresh/`, { refresh: refreshToken });
 
         console.log("New Access Token:", response.data.access);
+
         Cookies.set("access_token", response.data.access, { expires: 7, secure: true, sameSite: "Lax" });
+        Cookies.set("refresh_token", response.data.refresh, { expires: 30, secure: true, sameSite: "Lax" });
 
         return response.data.access;
     } catch (error: unknown) {
         const err = error as AxiosError;
         console.error("Failed to refresh access token:", err.message);
+        if (err.response) {
+            console.error("Response Data:", err.response.data);
+            console.error("Response Status:", err.response.status);
+        }
         return null;
     }
 };
 
 export const fetchUserProfile = async (): Promise<UserProfile | null> => {
     try {
-        let token = Cookies.get("access_token");
-        console.log("Using Access Token:", token);
-        if (!token) throw new Error("No token found");
+        let token = Cookies.get("access_token") ?? null;
+        console.log("Using Access Token Before Request:", token);
+
+        if (!token) {
+            console.warn("No access token found, attempting to refresh...");
+            token = await refreshAccessToken();
+            if (!token) {
+                console.error("Failed to refresh token. User must log in again.");
+                return null;
+            }
+        }
 
         const response = await axios.get<{ user: UserProfile }>(`${API_BASE_URL}/profile/`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -52,35 +68,66 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
         return response.data.user;
     } catch (error: unknown) {
         const err = error as AxiosError;
+
         if (err.response && err.response.status === 401) {
             console.warn("Access token expired, attempting to refresh...");
-            const token = await refreshAccessToken();
-            if (token) {
-                return fetchUserProfile(); // ✅ Retry fetching profile with new token
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+                console.log("Retrying profile fetch with new access token...");
+                return fetchUserProfile(); 
             }
         }
+
         console.error("Error fetching profile:", err.message);
         return null;
     }
 };
 
+
 export const loginUser = async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      console.log("Login Request:", { email, password });
-      const response = await axios.post<AuthResponse>(`${API_BASE_URL}/login/`, { email, password });
-  
-      console.log("Login Successful:", response.data);
+        console.log("Login Request:", { email, password });
 
-      Cookies.set("access_token", response.data.access, { expires: 7, secure: true, sameSite: "Lax" });
-      Cookies.set("refresh_token", response.data.refresh, { expires: 30, secure: true, sameSite: "Lax" });
-  
-      return response.data;
+        // Retrieve CSRF token from cookies
+        const csrftoken = Cookies.get("csrftoken");
+        if (!csrftoken) {
+            console.warn("No CSRF token found. Django may reject the request.");
+        }
+
+        const response = await axios.post<AuthResponse>(
+            `${API_BASE_URL}/login/`,
+            { email, password },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrftoken || "", // Include CSRF token in request headers
+                },
+                withCredentials: true, // Ensure cookies are sent
+            }
+        );
+
+        console.log("Login Successful:", response.data);
+
+        // Store tokens in cookies
+        Cookies.set("access_token", response.data.access, { expires: 7, secure: true, sameSite: "Lax" });
+        Cookies.set("refresh_token", response.data.refresh, { expires: 30, secure: true, sameSite: "Lax" });
+
+        return response.data;
     } catch (error: unknown) {
-      const err = error as AxiosError;
-      console.error("Login Failed:", err.message);
-      throw new Error("Invalid email or password");
+        const err = error as AxiosError;
+        console.error("Login Failed:", err.message);
+
+        // Log the actual response data
+        if (err.response) {
+            console.error("Response Data:", err.response.data);
+            console.error("Response Status:", err.response.status);
+        }
+
+        throw new Error("Invalid email or password");
     }
-  };
+};
+
+
   
 
 export const logoutUser = async (): Promise<void> => {
@@ -109,16 +156,52 @@ export const registerUser = async (first_name: string, last_name: string, email:
     }
 };
 
-export const forgotPassword = async (email: string): Promise<any> => {
+export const forgotPassword = async (email: string) => {
     try {
-        console.log("Forgot Password Request for:", email);
-        const response = await axios.post(`${API_BASE_URL}/forgot-password/`, { email });
+        const response = await fetch("/api/forgot-password/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+        });
 
-        console.log("Forgot Password Response:", response.data);
-        return response.data;
+        const data = await response.json();
+        if (response.ok) {
+            alert("Password reset email sent!");
+        } else {
+            alert(data.error);
+        }
+    } catch (error) {
+        console.error("Error:", error);
+    }
+};
+
+export const resetUserPassword = async (password: string, uidb64?: string, token?: string): Promise<boolean> => {
+    try {
+        let url = `${API_BASE_URL}/reset-password/`;
+        let config = {};
+        let requestData = { password };
+
+        if (uidb64 && token) {
+            url = `${API_BASE_URL}/reset-password/${uidb64}/${token}/`;
+        } else {
+            const authToken = Cookies.get("access_token");
+            if (!authToken) {
+                console.error("No access token found. Please log in again.");
+                return false;
+            }
+            config = { headers: { Authorization: `Bearer ${authToken}` } };
+        }
+
+        const response = await axios.post(url, requestData, config);
+        console.log("Password update successful:", response.data);
+        return true;
     } catch (error: unknown) {
         const err = error as AxiosError;
-        console.error("Forgot Password Failed:", err.message);
-        throw new Error("Failed to send reset password email");
+        console.error("Password update failed:", err.message);
+        if (err.response) {
+            console.error("Response Data:", err.response.data);
+            console.error("Response Status:", err.response.status);
+        }
+        return false;
     }
 };

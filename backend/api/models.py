@@ -18,6 +18,7 @@ class UserManager(BaseUserManager):
         return user
 
 class User(AbstractBaseUser):  
+    is_verified = models.BooleanField(default=False)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)

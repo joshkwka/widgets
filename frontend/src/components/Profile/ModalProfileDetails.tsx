@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchUserProfile, logoutUser } from "../../api/auth";
+import ResetPassword from "./ResetPassword";
 
 interface ModalProfileDetailsProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface ModalProfileDetailsProps {
 const ModalProfileDetails = ({ onClose }: ModalProfileDetailsProps) => {
   const [user, setUser] = useState<{ first_name: string; last_name: string; email: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -28,42 +30,61 @@ const ModalProfileDetails = ({ onClose }: ModalProfileDetailsProps) => {
 
   const handleLogout = () => {
     logoutUser();
-    onClose(); // Close modal after logout
-    window.location.reload(); // Refresh to clear state
+    onClose(); 
+    window.location.reload(); 
+  };
+
+  const handlePasswordSuccess = () => {
+    setIsChangingPassword(false); 
   };
 
   return (
     <div className="flex flex-col items-center space-y-4 p-4 bg-white rounded-lg shadow-lg">
-      <h2 className="text-xl font-semibold">Profile Details</h2>
-
-      {error ? (
-        <p className="text-red-500">{error}</p>
-      ) : user ? (
+      {isChangingPassword ? (
         <>
-          <p className="text-lg font-medium">{user.first_name} {user.last_name}</p>
-          <p className="text-sm text-gray-500">{user.email}</p>
-
+          <h2 className="text-xl font-semibold">Change Password</h2>
+          <ResetPassword onSuccess={handlePasswordSuccess} />
           <button
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-            onClick={() => alert("Change password feature coming soon!")}
+            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+            onClick={() => setIsChangingPassword(false)}
           >
-            Change Password
-          </button>
-
-          <button
-            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-            onClick={handleLogout}
-          >
-            Log Out
+            Back to Profile
           </button>
         </>
       ) : (
-        <p>Loading...</p>
-      )}
+        <>
+          <h2 className="text-xl font-semibold">Profile Details</h2>
 
-      <button className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" onClick={onClose}>
-        Back
-      </button>
+          {error ? (
+            <p className="text-red-500">{error}</p>
+          ) : user ? (
+            <>
+              <p className="text-lg font-medium">{user.first_name} {user.last_name}</p>
+              <p className="text-sm text-gray-500">{user.email}</p>
+
+              <button
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                onClick={() => setIsChangingPassword(true)}
+              >
+                Change Password
+              </button>
+
+              <button
+                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                onClick={handleLogout}
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
+            <p>Loading...</p>
+          )}
+
+          <button className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" onClick={onClose}>
+            Back
+          </button>
+        </>
+      )}
     </div>
   );
 };
