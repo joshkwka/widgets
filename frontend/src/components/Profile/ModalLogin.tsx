@@ -19,20 +19,27 @@ const ModalLogin = ({ onClose }: ModalLoginProps) => {
   };
 
   return (
-    <div>
+    <div className="p-4">
       {view === "register" ? (
         <RegisterForm onToggle={() => setView("login")} />
       ) : view === "forgot" ? (
-        <ForgotPasswordForm onToggle={() => setView("login")} />
+        <>
+          <ForgotPasswordForm />
+          <div className="flex justify-center">
+            <button className="text-blue-500 hover:underline mt-2" onClick={() => setView("login")}>
+              Back to Login
+            </button>
+          </div>
+        </>
       ) : (
-        <LoginForm onToggle={() => setView("register")} onLogin={handleLoginSuccess} />
-      )}
-      {view === "login" && (
-        <div className="flex justify-center">
-          <button className="text-blue-500 hover:underline mt-2" onClick={() => setView("forgot")}>
-            Forgot Password?
-          </button>
-        </div>
+        <>
+          <LoginForm onToggle={() => setView("register")} onLogin={handleLoginSuccess} />
+          <div className="flex justify-center">
+            <button className="text-blue-500 hover:underline mt-2" onClick={() => setView("forgot")}>
+              Forgot Password?
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

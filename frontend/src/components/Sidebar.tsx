@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LayoutSidebar from "./LayoutSidebar";
 import Modal from "./Modal";
 import ModalSettings from "./Settings/ModalSettings";
@@ -15,9 +15,18 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
   const [modalContent, setModalContent] = useState<string | null>(null);
-
-  // TODO: Replace this with real authentication check from backend
   const { isLoggedIn } = useAuth();
+
+  // Listen for magic login events and open the profile modal automatically.
+  useEffect(() => {
+    const handleMagicLogin = () => {
+      setModalContent("Profile");
+    };
+    window.addEventListener("magic-login-success", handleMagicLogin);
+    return () => {
+      window.removeEventListener("magic-login-success", handleMagicLogin);
+    };
+  }, []);
 
   // Function to render the correct modal component
   const renderModalContent = () => {
@@ -83,7 +92,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           Settings
         </button>
 
-        {/* Login/Profile Button - Changes Based on `isLoggedIn` */}
+        {/* Login/Profile Button */}
         <button
           className="p-2 my-2 rounded transition w-full"
           onClick={() => setModalContent(isLoggedIn ? "Profile" : "Login")}

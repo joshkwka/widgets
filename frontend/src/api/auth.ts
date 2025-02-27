@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import axios, { AxiosError } from "axios";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "http://localhost:8000/api";
 
 interface UserProfile {
     first_name: string;
@@ -156,52 +156,23 @@ export const registerUser = async (first_name: string, last_name: string, email:
     }
 };
 
-export const forgotPassword = async (email: string) => {
-    try {
-        const response = await fetch("/api/forgot-password/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            alert("Password reset email sent!");
-        } else {
-            alert(data.error);
-        }
-    } catch (error) {
-        console.error("Error:", error);
-    }
+export const requestPasswordReset = async (email: string) => {
+    return axios.post(`${API_BASE_URL}/password_reset/`, { email });
 };
 
-export const resetUserPassword = async (password: string, uidb64?: string, token?: string): Promise<boolean> => {
-    try {
-        let url = `${API_BASE_URL}/reset-password/`;
-        let config = {};
-        let requestData = { password };
-
-        if (uidb64 && token) {
-            url = `${API_BASE_URL}/reset-password/${uidb64}/${token}/`;
-        } else {
-            const authToken = Cookies.get("access_token");
-            if (!authToken) {
-                console.error("No access token found. Please log in again.");
-                return false;
-            }
-            config = { headers: { Authorization: `Bearer ${authToken}` } };
-        }
-
-        const response = await axios.post(url, requestData, config);
-        console.log("Password update successful:", response.data);
-        return true;
-    } catch (error: unknown) {
-        const err = error as AxiosError;
-        console.error("Password update failed:", err.message);
-        if (err.response) {
-            console.error("Response Data:", err.response.data);
-            console.error("Response Status:", err.response.status);
-        }
-        return false;
-    }
+export const validateResetToken = async (token: string) => {
+    return axios.post(`${API_BASE_URL}/password_reset/validate_token/`, { token });
 };
+
+export const resetPassword = async (token: string, password: string) => {
+    return axios.post(`${API_BASE_URL}/password_reset/confirm/`, { token, password });
+};
+
+export const sendMagicLoginEmail = async (email: string) => {
+    return axios.post(`${API_BASE_URL}/send-magic-link/`, { email });
+};
+
+export const magicLogin = async (token: string) => {
+    return axios.post(`${API_BASE_URL}/auth-login/`, { token }, { withCredentials: true });
+};
+

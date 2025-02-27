@@ -12,19 +12,28 @@ interface ModalProfileProps {
 const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
   const { isLoggedIn, user, setIsLoggedIn, setUser } = useAuth();
   const [view, setView] = useState<"profile" | "login" | "details">("profile");
+  const [autoOpenReset, setAutoOpenReset] = useState(false);
 
   useEffect(() => {
-    console.log("ModalProfile: isLoggedIn changed:", isLoggedIn);
-    console.log("ModalProfile: User updated:", user);
-    
+    // When auth status changes, adjust view
     if (isLoggedIn) {
       setView("profile");
     } else {
       setView("login");
     }
-  }, [isLoggedIn, user]);  
-  console.log("Rendering ModalProfile: isLoggedIn =", isLoggedIn, "User =", user, "Current View =", view);
+  }, [isLoggedIn, user]);
 
+  // Listen for magic login events to force profile details with reset password open.
+  useEffect(() => {
+    const handleMagicLogin = () => {
+      setView("details");
+      setAutoOpenReset(true);
+    };
+    window.addEventListener("magic-login-success", handleMagicLogin);
+    return () => {
+      window.removeEventListener("magic-login-success", handleMagicLogin);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -54,7 +63,8 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
       ) : view === "login" ? (
         <ModalLogin onClose={() => setView("profile")} />
       ) : view === "details" ? (
-        <ModalProfileDetails onClose={() => setView("profile")} />
+        // Pass autoOpenReset flag to ModalProfileDetails
+        <ModalProfileDetails onClose={() => setView("profile")} autoOpenReset={autoOpenReset} />
       ) : null}
     </div>
   );
