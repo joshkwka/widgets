@@ -1,31 +1,29 @@
 # api/views.py
 
-from django.http import JsonResponse, HttpResponseRedirect
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.template.loader import render_to_string
-from django.contrib.auth import authenticate, logout
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.conf import settings
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from .models import User
-from .serializers import UserSerializer
-from datetime import timedelta
 import json
 import jwt  
+
+from datetime import timedelta
+from django.conf import settings
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import get_object_or_404
-from django.contrib.auth import login
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.views import APIView
 
-
+from .models import User
+from .serializers import UserSerializer
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:3000"
@@ -50,101 +48,109 @@ def mail_template(content, button_url, button_text):
             </body>
             </html>"""
 
+def send_verification_email(user: User):
+    payload = {
+        "user_id": user.id,
+        "email_verification": True,
+        "exp": int((now() + timedelta(hours=1)).timestamp())
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+    verification_link = f"{URL}/auth-login?token={token}"
+
+    subject = "Verify Your Email"
+
+    content = f"""
+    Welcome to Widgets!<br><br>
+    Please verify your email by clicking the button below.
+    """
+    message = mail_template(content, verification_link, "Verify Email")
+
+    send_mail(
+        subject,
+        "Please enable HTML to view this message",  # Fallback plain text
+        settings.EMAIL_HOST_USER,
+        [user.email],
+        fail_silently=False,
+        html_message=message
+    )
+
+#=====================================================================================#
+# VIEWS
+#=====================================================================================#
+
 class RegistrationView(APIView):
     def post(self, request):
-        print("Received Registration Data:", request.data)  
+        print("Received Registration Data:", request.data)
 
         email = request.data.get("email")
         existing_user = User.objects.filter(email=email).first()
 
         if existing_user:
-            if not existing_user.is_active:
-                # Resend verification email
-                uid = urlsafe_base64_encode(force_bytes(existing_user.pk))
-                token = default_token_generator.make_token(existing_user)
-                verification_link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+            if not existing_user.is_verified:
+                # Resend verification email if they haven't verified yet
+                send_verification_email(existing_user)
 
-                subject = "Verify Your Account"
-                message = render_to_string('email_verification.html', {
-                    'user': existing_user,
-                    'verification_link': verification_link
-                })
+                return Response({
+                    "success": True,
+                    "message": "Verification email resent. Please check your inbox."
+                }, status=status.HTTP_200_OK)
 
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[existing_user.email],
-                    html_message=message
-                )
-
-                return Response({"success": True, "message": "Verification email resent. Please check your inbox."}, status=status.HTTP_200_OK)
-
-            return Response({"success": False, "message": "Email is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "success": False,
+                "message": "Email is already in use."
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # Create a new user
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             try:
                 user = serializer.save()
-                user.is_active = False  # Prevent login until email is verified
+                user.is_active = False  # Don't allow login until verified
+                user.is_verified = False
                 user.save()
 
-                # Generate verification token
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                verification_link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+                # Send verification email using the JWT approach
+                send_verification_email(user)
 
-                # Send email
-                subject = "Verify Your Account"
-                message = render_to_string('email_verification.html', {
-                    'user': user,
-                    'verification_link': verification_link
-                })
-
-                print("Sending email to:", user.email)  
-
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[user.email],
-                    html_message=message
-                )
-
-                return Response({"success": True, "message": "Verification email sent. Please check your inbox."}, status=status.HTTP_201_CREATED)
+                return Response({
+                    "success": True,
+                    "message": "Verification email sent. Please check your inbox."
+                }, status=status.HTTP_201_CREATED)
 
             except Exception as e:
-                print(f"ERROR DURING USER CREATION: {e}")  
-                return Response({"success": False, "message": f"Internal Server Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                print(f"ERROR DURING USER CREATION: {e}")
+                return Response({
+                    "success": False,
+                    "message": f"Internal Server Error: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        print("Serializer Errors:", serializer.errors)  
+        print("Serializer Errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LoginView(APIView):
     def post(self, request, format=None):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        try:
-            user = User.objects.get(email=email)  
-        except User.DoesNotExist:
+        user = authenticate(request, email=email, password=password)
+
+        if user is None:
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not user.check_password(password):
-            return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
-
-        user.backend = "api.auth_backends.EmailBackend"
-        login(request, user)
+        if not user.is_verified:
+            return Response({"success": False, "message": "Please verify your email before logging in."}, status=status.HTTP_400_BAD_REQUEST)
 
         refresh = RefreshToken.for_user(user)
+
         return Response(
             {
                 "success": True,
                 "message": "You are now logged in!",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user": {  
+                "user": {
                     "first_name": user.first_name or "User",
                     "last_name": user.last_name or "",
                     "email": user.email
@@ -152,6 +158,7 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
 
 
 
@@ -174,32 +181,6 @@ class ProfileView(APIView):
                 },
             },
             status=status.HTTP_200_OK,
-        )
-
-class VerifyEmailView(APIView):
-    permission_classes = [AllowAny]  # No authentication required
-
-    def get(self, request, uidb64, token):
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return JsonResponse(
-                {"success": False, "message": "Invalid verification link."},
-                status=400
-            )
-
-        if default_token_generator.check_token(user, token):
-            user.is_active = True
-            user.save()
-            return JsonResponse(
-                {"success": True, "message": "Email verified successfully! You may now log in."},
-                status=200
-            )
-
-        return JsonResponse(
-            {"success": False, "message": "Invalid or expired verification link."},
-            status=400
         )
 
 SECRET_KEY = settings.SECRET_KEY 
@@ -247,9 +228,23 @@ def magic_login(request):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         user = get_object_or_404(User, id=payload["user_id"])
-        login(request, user)  # Log in the user using Django's session
 
-        # Generate tokens using Simple JWT
+        if payload.get("email_verification"):
+            user.is_verified = True
+            user.is_active = True
+            user.save()
+
+            # Trigger an event for your frontend to show a "Verification Successful" message
+            response = JsonResponse({
+                "message": "Email verified successfully!",
+                "user": {"email": user.email},
+            })
+            response.set_cookie("verification_success", "true", max_age=60, secure=False, samesite="Lax")
+            return response
+
+        # Otherwise, it's a normal magic login flow
+        login(request, user)
+
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
@@ -258,7 +253,6 @@ def magic_login(request):
             "message": "Logged in successfully!",
             "user": {"email": user.email},
         })
-        # In development, set secure=False so cookies are accepted over HTTP.
         response.set_cookie("access_token", access_token, max_age=7*24*60*60, secure=False, samesite="Lax")
         response.set_cookie("refresh_token", refresh_token, max_age=30*24*60*60, secure=False, samesite="Lax")
         return response
@@ -301,5 +295,42 @@ class ChangePasswordView(APIView):
             print("Error updating password:", str(e))
             return Response({"error": str(e)}, status=500)
 
+class UpdateProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
-            
+    def post(self, request):
+        user = request.user
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
+
+        if not first_name or not last_name:
+            return Response({"success": False, "message": "Both first name and last name are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+
+        return Response({
+            "success": True,
+            "message": "Profile updated successfully!",
+            "user": {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+            },
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request):
+        user = request.user
+        user.delete()
+
+        response = Response({"success": True, "message": "Your account has been deleted."}, status=status.HTTP_200_OK)
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return response

@@ -204,3 +204,25 @@ export const updatePassword = async (password: string) => {
         throw new Error("Failed to update password.");
     }
 };
+
+// Profile functions
+export const updateUserProfile = async (first_name: string, last_name: string): Promise<any> => {
+    const token = Cookies.get("access_token");
+
+    const response = await axios.post(
+        `${API_BASE_URL}/update-profile/`,
+        { first_name, last_name },
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+};
+
+export const deleteUserAccount = async (): Promise<any> => {
+    const token = Cookies.get("access_token");
+
+    const response = await axios.delete(`${API_BASE_URL}/delete-account/`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data;
+};
