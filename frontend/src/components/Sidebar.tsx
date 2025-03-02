@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LayoutSidebar from "./LayoutSidebar";
 import Modal from "./Modal";
 import ModalSettings from "./Settings/ModalSettings";
 import ModalCalendar from "./Calendar/ModalCalendar";
 import ModalProfile from "./Profile/ModalProfile";
 import ModalLogin from "./Profile/ModalLogin"; 
-import { useAuth } from "../context/AuthContext"; 
+import { useAuth } from "../context/AuthContext";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,11 +15,35 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
   const [modalContent, setModalContent] = useState<string | null>(null);
-
-  // TODO: Replace this with real authentication check from backend
+  const [modalTitle, setModalTitle] = useState<string | null>(null);  // New State
   const { isLoggedIn } = useAuth();
 
-  // Function to render the correct modal component
+  // Combined function to set modal content & title
+  const openModal = (content: string, title: string) => {
+    setModalContent(content);
+    setModalTitle(title);
+  };
+
+  // Listen for magic login events and open the profile modal automatically.
+  useEffect(() => {
+    const handleMagicLogin = () => {
+      openModal("Profile", "Profile");
+    };
+
+    const handleEmailVerified = () => {
+      openModal("Login", "Login");
+    };
+
+    window.addEventListener("magic-login-success", handleMagicLogin);
+    window.addEventListener("email-verified", handleEmailVerified);
+
+    return () => {
+      window.removeEventListener("magic-login-success", handleMagicLogin);
+      window.removeEventListener("email-verified", handleEmailVerified);
+    };
+  }, []);
+
+  // Function to render the correct modal content component
   const renderModalContent = () => {
     switch (modalContent) {
       case "Settings":
@@ -72,21 +96,27 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         {/* Other Buttons - Open Specific Modals */}
         <button
           className="p-2 my-2 rounded transition w-full"
-          onClick={() => setModalContent("Calendar")}
+          onClick={() => openModal("Calendar", "Calendar")}
         >
           Calendar
         </button>
         <button
           className="p-2 my-2 rounded transition w-full"
-          onClick={() => setModalContent("Settings")}
+          onClick={() => openModal("Settings", "Settings")}
         >
           Settings
         </button>
 
-        {/* Login/Profile Button - Changes Based on `isLoggedIn` */}
+        {/* Login/Profile Button */}
         <button
           className="p-2 my-2 rounded transition w-full"
-          onClick={() => setModalContent(isLoggedIn ? "Profile" : "Login")}
+          onClick={() => {
+            if (isLoggedIn) {
+              openModal("Profile", "Profile");
+            } else {
+              openModal("Login", "Login");
+            }
+          }}
         >
           {isLoggedIn ? "Profile" : "Login"}
         </button>
@@ -95,9 +125,13 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       {/* Render LayoutSidebar */}
       {isOpen && <LayoutSidebar isOpenLayout={isLayoutOpen} />}
 
-      {/* Render the selected modal */}
+      {/* Render Modal */}
       {modalContent && (
-        <Modal isOpen={!!modalContent} onClose={() => setModalContent(null)} title={modalContent || ""}>
+        <Modal
+          isOpen={!!modalContent}
+          onClose={() => setModalContent(null)}
+          title={modalTitle || ""}  
+        >
           {renderModalContent()}
         </Modal>
       )}

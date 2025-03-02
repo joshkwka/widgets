@@ -25,10 +25,24 @@ const LoginForm = ({ onToggle, onLogin }: LoginFormProps) => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleLogin();
+    }
+  };
+
+
   return (
     <div className="flex flex-col items-center space-y-4">
       <input type="email" placeholder="Email" className="p-2 border rounded w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" className="p-2 border rounded w-full" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <input
+        type="password"
+        placeholder="Password"
+        className="p-2 border rounded w-full"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={handleKeyDown} 
+      />
       {error && <p className="text-red-500">{error}</p>}
       <button className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg" onClick={handleLogin}>Log In</button>
       <button className="text-blue-500 hover:underline" onClick={onToggle}>Create an account</button>

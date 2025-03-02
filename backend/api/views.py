@@ -1,21 +1,29 @@
 # api/views.py
 
-from django.shortcuts import render
-from django.contrib.auth.hashers import make_password, check_password
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.mail import send_mail
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from .models import User, Token
-from .serializers import UserSerializer, TokenSerializer
+import json
+import jwt  
+
+from datetime import timedelta
 from django.conf import settings
-from datetime import datetime, timedelta
-import hashlib
-import uuid
-from django.utils import timezone
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.views import APIView
+
+from .models import User
+from .serializers import UserSerializer
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:3000"
@@ -40,124 +48,85 @@ def mail_template(content, button_url, button_text):
             </body>
             </html>"""
 
-class ResetPasswordView(APIView):
-    def post(self, request, format=None):
-        user_id = request.data.get("id")
-        token = request.data.get("token")
-        password = request.data.get("password")
+def send_verification_email(user: User):
+    payload = {
+        "user_id": user.id,
+        "email_verification": True,
+        "exp": int((now() + timedelta(hours=1)).timestamp())
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
-        token_obj = Token.objects.filter(user_id=user_id).order_by("-created_at").first()
-        
-        if not token_obj:
-            return Response({"success": False, "message": "Invalid or expired reset link!"}, status=status.HTTP_400_BAD_REQUEST)
+    verification_link = f"{URL}/auth-login?token={token}"
 
-        if token_obj.is_used:
-            return Response({"success": False, "message": "Reset Password link has already been used!"}, status=status.HTTP_400_BAD_REQUEST)
+    subject = "Verify Your Email"
 
-        if token_obj.expires_at < timezone.now():
-            return Response({"success": False, "message": "Password Reset Link has expired!"}, status=status.HTTP_400_BAD_REQUEST)
+    content = f"""
+    Welcome to Widgets!<br><br>
+    Please verify your email by clicking the button below.
+    """
+    message = mail_template(content, verification_link, "Verify Email")
 
-        if token_obj.token != token:
-            return Response({"success": False, "message": "Invalid Reset Password link!"}, status=status.HTTP_400_BAD_REQUEST)
+    send_mail(
+        subject,
+        "Please enable HTML to view this message",  # Fallback plain text
+        settings.EMAIL_HOST_USER,
+        [user.email],
+        fail_silently=False,
+        html_message=message
+    )
 
-        hashed_password = make_password(password)
-        ret_code = User.objects.filter(id=user_id).update(password=hashed_password)
-
-        if ret_code:
-            token_obj.is_used = True
-            token_obj.save()
-            return Response({"success": True, "message": "Your password has been reset successfully!"}, status=status.HTTP_200_OK)
-
-        return Response({"success": False, "message": "Password reset failed!"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class ForgotPasswordView(APIView):
-    def post(self, request, format=None):
-        email = request.data.get("email")
-
-        if not email:
-            return Response({"success": False, "message": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        user = User.objects.filter(email=email).first()
-        if not user:
-            return Response(
-                {"success": True, "message": "If this email exists, a reset link will be sent."},
-                status=status.HTTP_200_OK,
-            )
-
-        created_at = timezone.now()
-        expires_at = created_at + timedelta(days=1)
-        token = hashlib.sha512((str(uuid.uuid4()) + created_at.isoformat()).encode("utf-8")).hexdigest()
-
-        token_obj = {
-            "token": token,
-            "created_at": created_at,
-            "expires_at": expires_at,
-            "user_id": user.id,
-        }
-        serializer = TokenSerializer(data=token_obj)
-
-        if serializer.is_valid():
-            serializer.save()
-            
-            try:
-                subject = "Forgot Password Link"
-                content = mail_template(
-                    "We received a request to reset your password. Please use the link below.",
-                    f"{URL}/resetPassword?id={user.id}&token={token}",
-                    "Reset Password",
-                )
-                send_mail(
-                    subject=subject,
-                    message=content,
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[email],
-                    html_message=content,
-                )
-            except Exception as e:
-                print(f"Email sending failed: {e}") 
-                return Response(
-                    {"success": False, "message": "Failed to send reset email."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-        return Response(
-            {"success": True, "message": "If this email exists, a reset link will be sent."},
-            status=status.HTTP_200_OK,
-        )
-
-
-
+#=====================================================================================#
+# VIEWS
+#=====================================================================================#
 
 class RegistrationView(APIView):
-    def post(self, request, format=None):
-        request.data["email"] = request.data["email"].lower().strip()  
-        request.data["password"] = make_password(request.data["password"])  
+    def post(self, request):
+        print("Received Registration Data:", request.data)
 
-        first_name = request.data.get("first_name", "").strip()
-        last_name = request.data.get("last_name", "").strip()
-        
-        if not first_name or not last_name:
-            return Response({"success": False, "message": "First and last name are required!"}, status=status.HTTP_400_BAD_REQUEST)
+        email = request.data.get("email")
+        existing_user = User.objects.filter(email=email).first()
 
-        # Check if email is already used
-        if User.objects.filter(email=request.data["email"]).exists():
-            return Response({"success": False, "message": "Email is already registered!"}, status=status.HTTP_400_BAD_REQUEST)
+        if existing_user:
+            if not existing_user.is_verified:
+                # Resend verification email if they haven't verified yet
+                send_verification_email(existing_user)
 
+                return Response({
+                    "success": True,
+                    "message": "Verification email resent. Please check your inbox."
+                }, status=status.HTTP_200_OK)
+
+            return Response({
+                "success": False,
+                "message": "Email is already in use."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new user
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "You are now registered!"},
-                status=status.HTTP_201_CREATED,
-            )
-        else:
-            return Response(
-                {"success": False, "message": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            try:
+                user = serializer.save()
+                user.is_active = False  # Don't allow login until verified
+                user.is_verified = False
+                user.save()
 
+                # Send verification email using the JWT approach
+                send_verification_email(user)
 
+                return Response({
+                    "success": True,
+                    "message": "Verification email sent. Please check your inbox."
+                }, status=status.HTTP_201_CREATED)
 
+            except Exception as e:
+                print(f"ERROR DURING USER CREATION: {e}")
+                return Response({
+                    "success": False,
+                    "message": f"Internal Server Error: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        print("Serializer Errors:", serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
@@ -165,21 +134,23 @@ class LoginView(APIView):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        user = User.objects.filter(email=email).first()
+        user = authenticate(request, email=email, password=password)
+
         if user is None:
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_password(password, user.password):
-            return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.is_verified:
+            return Response({"success": False, "message": "Please verify your email before logging in."}, status=status.HTTP_400_BAD_REQUEST)
 
         refresh = RefreshToken.for_user(user)
+
         return Response(
             {
                 "success": True,
                 "message": "You are now logged in!",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user": {  
+                "user": {
                     "first_name": user.first_name or "User",
                     "last_name": user.last_name or "",
                     "email": user.email
@@ -187,6 +158,8 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
 
 
 class ProfileView(APIView):
@@ -209,3 +182,155 @@ class ProfileView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+SECRET_KEY = settings.SECRET_KEY 
+
+@csrf_exempt
+def send_magic_login_email(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    data = json.loads(request.body)
+    email = data.get("email")
+
+    # Ensure user exists
+    user = get_object_or_404(User, email=email)
+
+    # Create a JWT token valid for 15 minutes
+    payload = {
+        "user_id": user.id,
+        "exp": int((now() + timedelta(minutes=15)).timestamp()),
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+    # Send login link via email
+    login_link = f"{URL}/auth-login?token={token}"
+    send_mail(
+        "Your Secure Login Link",
+        f"Click this link to log in and reset your password: {login_link}",
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+
+    return JsonResponse({"message": "Login link sent!"}, status=200)
+
+@csrf_exempt
+def magic_login(request):
+    if request.method == "GET":
+        token = request.GET.get("token")
+    elif request.method == "POST":
+        data = json.loads(request.body)
+        token = data.get("token")
+    else:
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        user = get_object_or_404(User, id=payload["user_id"])
+
+        if payload.get("email_verification"):
+            user.is_verified = True
+            user.is_active = True
+            user.save()
+
+            # Trigger an event for your frontend to show a "Verification Successful" message
+            response = JsonResponse({
+                "message": "Email verified successfully!",
+                "user": {"email": user.email},
+            })
+            response.set_cookie("verification_success", "true", max_age=60, secure=False, samesite="Lax")
+            return response
+
+        # Otherwise, it's a normal magic login flow
+        login(request, user)
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        response = JsonResponse({
+            "message": "Logged in successfully!",
+            "user": {"email": user.email},
+        })
+        response.set_cookie("access_token", access_token, max_age=7*24*60*60, secure=False, samesite="Lax")
+        response.set_cookie("refresh_token", refresh_token, max_age=30*24*60*60, secure=False, samesite="Lax")
+        return response
+
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Token has expired."}, status=400)
+    except jwt.InvalidTokenError:
+        return JsonResponse({"error": "Invalid token."}, status=400)
+
+########## CHANGE secure=True FOR DEPLOYMENT
+
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        new_password = request.data.get("password")
+
+        if not new_password:
+            return Response({"error": "Password is required."}, status=400)
+
+        try:
+            request.user.set_password(new_password)
+            request.user.save()
+            request.user.refresh_from_db()
+            
+            # Force clear Django’s authentication cache
+            request.user = User.objects.get(pk=request.user.pk)
+            
+            logout(request)
+
+            response = Response({"message": "Password updated successfully! You have been logged out."}, status=200)
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+
+            return response
+
+        except Exception as e:
+            print("Error updating password:", str(e))
+            return Response({"error": str(e)}, status=500)
+
+class UpdateProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        user = request.user
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
+
+        if not first_name or not last_name:
+            return Response({"success": False, "message": "Both first name and last name are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.first_name = first_name
+        user.last_name = last_name
+        user.save()
+
+        return Response({
+            "success": True,
+            "message": "Profile updated successfully!",
+            "user": {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+            },
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request):
+        user = request.user
+        user.delete()
+
+        response = Response({"success": True, "message": "Your account has been deleted."}, status=status.HTTP_200_OK)
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return response

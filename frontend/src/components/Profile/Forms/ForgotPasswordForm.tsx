@@ -1,44 +1,40 @@
 import { useState } from "react";
-import { forgotPassword } from "../../../api/auth";
+import { sendMagicLoginEmail } from "../../../api/auth";
 
-interface ForgotPasswordFormProps {
-    onToggle: () => void;
-}
+const ForgotPasswordForm = () => {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
 
-const ForgotPasswordForm = ({ onToggle }: ForgotPasswordFormProps) => {
-    const [email, setEmail] = useState("");
-    const [message, setMessage] = useState("");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await sendMagicLoginEmail(email);
+      setMessage("Login link sent! Check your email.");
+    } catch (error) {
+      setMessage("Error sending link.");
+    }
+  };
 
-    const handleForgotPassword = async () => {
-        try {
-            await forgotPassword(email);
-            setMessage("Check your email for a password reset link.");
-        } catch (err) {
-            setMessage("Failed to send reset link. Try again.");
-        }
-    };
-
-    return (
-        <div className="flex flex-col items-center space-y-4">
-            <input
-                type="email"
-                placeholder="Enter your email"
-                className="p-2 border rounded w-full"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
-            <button
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                onClick={handleForgotPassword}
-            >
-                Send Reset Link
-            </button>
-            {message && <p className="text-green-500">{message}</p>}
-            <button className="text-blue-500 hover:underline" onClick={onToggle}>
-                Back to login
-            </button>
-        </div>
-    );
+  return (
+    <form onSubmit={handleSubmit} className="p-4 bg-white rounded-lg shadow-lg">
+      <h2 className="text-xl font-semibold mb-2">Forgot Password</h2>
+      <input
+        type="email"
+        placeholder="Enter your email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="w-full p-2 border rounded mb-2"
+      />
+      <button
+        type="submit"
+        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+      >
+        Send Reset Link
+      </button>
+      {message && <p className="mt-2 text-sm text-gray-600">{message}</p>}
+    </form>
+  );
 };
 
 export default ForgotPasswordForm;

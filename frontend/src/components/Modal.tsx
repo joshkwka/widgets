@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 
 interface ModalProps {
@@ -9,6 +9,13 @@ interface ModalProps {
 }
 
 const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+  const [currentTitle, setCurrentTitle] = useState(title);
+
+  // Actively listen for title prop changes
+  useEffect(() => {
+    setCurrentTitle(title);
+  }, [title]);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -28,7 +35,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
       <div className="bg-[var(--widget-bg)] text-[var(--foreground)] p-6 rounded-lg shadow-lg w-100 max-w-full transform transition-all duration-300 ease-in-out scale-95">
         {/* Modal Header */}
         <div className="flex justify-between items-center">
-          {title && <h2 className="text-lg font-semibold">{title}</h2>}
+          {currentTitle && <h2 className="text-lg font-semibold">{currentTitle}</h2>}
           <button onClick={onClose} className="text-xl text-[var(--text-dark)] hover:text-red-500 transition">
             ✕
           </button>

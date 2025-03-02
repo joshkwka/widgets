@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !!Cookies.get("access_token"));
   const [user, setUser] = useState<{ first_name: string; last_name: string; email: string } | null>(null);
 
+  // Initial auth check on mount
   useEffect(() => {
     const checkAuth = async () => {
       const token = Cookies.get("access_token");
@@ -47,6 +48,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
+  // Listen for "magic-login-success" event to refresh auth state
+  useEffect(() => {
+    const handleMagicLoginSuccess = async () => {
+      const token = Cookies.get("access_token");
+      if (token) {
+        try {
+          const userProfile = await fetchUserProfile();
+          if (userProfile) {
+            console.log("Magic login event: User Profile Loaded:", userProfile);
+            setUser(userProfile);
+            setIsLoggedIn(true);
+          } else {
+            console.warn("Magic login event: User profile is null.");
+            setIsLoggedIn(false);
+            setUser(null);
+          }
+        } catch (error) {
+          console.warn("Magic login event: Failed to fetch user profile.");
+          setIsLoggedIn(false);
+          setUser(null);
+        }
+      }
+    };
+
+    window.addEventListener("magic-login-success", handleMagicLoginSuccess);
+    return () => {
+      window.removeEventListener("magic-login-success", handleMagicLoginSuccess);
+    };
+  }, []);
+
   useEffect(() => {
     console.log("AuthContext Updated: isLoggedIn =", isLoggedIn, "user =", user); 
   }, [isLoggedIn, user]);
@@ -56,6 +87,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoggedIn(false);
     setUser(null);
   };
+
+  useEffect(() => {
+    const handleLogoutEvent = () => {
+      console.log("Logout event received. Clearing authentication state.");
+      setIsLoggedIn(false);
+      setUser(null);
+    };
+
+    window.addEventListener("logout", handleLogoutEvent);
+    return () => {
+      window.removeEventListener("logout", handleLogoutEvent);
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ isLoggedIn, user, setIsLoggedIn, setUser, handleLogout }}>
