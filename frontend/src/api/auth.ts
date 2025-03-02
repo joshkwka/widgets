@@ -127,9 +127,6 @@ export const loginUser = async (email: string, password: string): Promise<AuthRe
     }
 };
 
-
-  
-
 export const logoutUser = async (): Promise<void> => {
     try {
         Cookies.remove("access_token");
@@ -156,17 +153,17 @@ export const registerUser = async (first_name: string, last_name: string, email:
     }
 };
 
-export const requestPasswordReset = async (email: string) => {
-    return axios.post(`${API_BASE_URL}/password_reset/`, { email });
-};
+// export const requestPasswordReset = async (email: string) => {
+//     return axios.post(`${API_BASE_URL}/password_reset/`, { email });
+// };
 
-export const validateResetToken = async (token: string) => {
-    return axios.post(`${API_BASE_URL}/password_reset/validate_token/`, { token });
-};
+// export const validateResetToken = async (token: string) => {
+//     return axios.post(`${API_BASE_URL}/password_reset/validate_token/`, { token });
+// };
 
-export const resetPassword = async (token: string, password: string) => {
-    return axios.post(`${API_BASE_URL}/password_reset/confirm/`, { token, password });
-};
+// export const resetPassword = async (token: string, password: string) => {
+//     return axios.post(`${API_BASE_URL}/password_reset/confirm/`, { token, password });
+// };
 
 export const sendMagicLoginEmail = async (email: string) => {
     return axios.post(`${API_BASE_URL}/send-magic-link/`, { email });
@@ -176,3 +173,34 @@ export const magicLogin = async (token: string) => {
     return axios.post(`${API_BASE_URL}/auth-login/`, { token }, { withCredentials: true });
 };
 
+// Update password & log out after change
+export const updatePassword = async (password: string) => {
+    const token = Cookies.get("access_token");
+
+    try {
+        const response = await axios.post(
+            `${API_BASE_URL}/change-password/`,
+            { password },
+            { 
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
+
+        if (response.status === 200) {
+            console.log("Password updated successfully. Logging out...");
+
+            // Remove tokens from cookies
+            Cookies.remove("access_token");
+            Cookies.remove("refresh_token");
+
+            // Dispatch logout event (if needed elsewhere)
+            window.dispatchEvent(new Event("logout"));
+
+            return response.data;
+        }
+    } catch (error) {
+        console.error("Error updating password:", error);
+        throw new Error("Failed to update password.");
+    }
+};

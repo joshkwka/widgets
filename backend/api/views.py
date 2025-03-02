@@ -1,13 +1,11 @@
 # api/views.py
 
-from django.shortcuts import render
-from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.template.loader import render_to_string
+from django.contrib.auth import authenticate, logout
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth.hashers import make_password, check_password
 from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,11 +14,16 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token
-from .serializers import UserSerializer, TokenSerializer
-from datetime import datetime, timedelta
-import hashlib
-import uuid
+from .models import User
+from .serializers import UserSerializer
+from datetime import timedelta
+import json
+import jwt  
+from django.http import JsonResponse
+from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import login
 
 
 
@@ -46,73 +49,6 @@ def mail_template(content, button_url, button_text):
                 </div>
             </body>
             </html>"""
-
-class ResetPasswordView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request, uidb64=None, token=None):
-        password = request.data.get("password")
-
-        if not password:
-            return Response({"success": False, "message": "Password is required"}, status=400)
-
-        if uidb64 and token:
-            try:
-                uid = urlsafe_base64_decode(uidb64).decode()
-                user = User.objects.get(pk=uid)
-            except (User.DoesNotExist, ValueError, TypeError):
-                return Response({"success": False, "message": "Invalid token or user."}, status=400)
-
-            # Validate the token
-            if not default_token_generator.check_token(user, token):
-                return Response({"success": False, "message": "Invalid or expired token."}, status=400)
-
-            # Update the password
-            user.set_password(password)  # Hashes and updates the password
-            user.save()  # Save the user object with the new password
-
-            return Response({"success": True, "message": "Password reset successfully."}, status=200)
-        
-        return Response({"success": False, "message": "Invalid request. UID or token missing."}, status=400)
-    
-class ForgotPasswordView(APIView):
-    permission_classes = [AllowAny]  # No authentication required
-
-    def post(self, request):
-        email = request.data.get("email")
-
-        if not email:
-            return Response({"success": False, "message": "Email is required"}, status=400)
-
-        user = User.objects.filter(email=email).first()
-        if not user:
-            return Response(
-                {"success": True, "message": "If this email exists, a reset link will be sent."},
-                status=200
-            )
-
-        # Generate reset token
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
-
-        # Send email
-        subject = "Reset Your Password"
-        content = mail_template(
-            "We received a request to reset your password. Click the link below:",
-            reset_url,
-            "Reset Password"
-        )
-
-        send_mail(
-            subject=subject,
-            message=content,
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[email],
-            html_message=content
-        )
-
-        return Response({"success": True, "message": "Password reset email sent."}, status=200)
 
 class RegistrationView(APIView):
     def post(self, request):
@@ -185,17 +121,70 @@ class RegistrationView(APIView):
         print("Serializer Errors:", serializer.errors)  
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# class LoginView(APIView):
+#     def post(self, request, format=None):
+#         email = request.data.get("email")
+#         password = request.data.get("password")
+
+#         print(f"Login Attempt: {email} - Password Entered: {password}")
+
+#         try:
+#             user = User.objects.get(email=email)  
+#         except User.DoesNotExist:
+#             print("No user found with this email.")
+#             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         print(f"Stored Hashed Password: {user.password}")
+#         print(f"Checking password against hashed value...")
+
+#         if not user.check_password(password): 
+#             print("Password check failed!")
+#             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         print("Password check passed! Logging in user.")
+
+#         refresh = RefreshToken.for_user(user)
+#         return Response(
+#             {
+#                 "success": True,
+#                 "message": "You are now logged in!",
+#                 "access": str(refresh.access_token),
+#                 "refresh": str(refresh),
+#                 "user": {  
+#                     "first_name": user.first_name or "User",
+#                     "last_name": user.last_name or "",
+#                     "email": user.email
+#                 }
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+
+from django.contrib.auth import login
+
 class LoginView(APIView):
     def post(self, request, format=None):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        user = User.objects.filter(email=email).first()
-        if user is None:
+        print(f"🔄 Login Attempt: {email} - Password Entered: {password}")
+
+        try:
+            user = User.objects.get(email=email)  
+        except User.DoesNotExist:
+            print("❌ No user found with this email.")
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_password(password, user.password):
+        print(f"🔹 Stored Hashed Password (latest DB value): {user.password}")
+        print(f"🔄 Checking password against hashed value...")
+
+        if not user.check_password(password):
+            print("❌ Password check failed!")
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
+
+        print("✅ Password check passed! Logging in user.")
+
+        user.backend = "api.auth_backends.EmailBackend"
+        login(request, user)
 
         refresh = RefreshToken.for_user(user)
         return Response(
@@ -212,6 +201,7 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
 
 
 class ProfileView(APIView):
@@ -260,3 +250,111 @@ class VerifyEmailView(APIView):
             {"success": False, "message": "Invalid or expired verification link."},
             status=400
         )
+
+SECRET_KEY = settings.SECRET_KEY  # Use Django's secret key
+
+@csrf_exempt
+def send_magic_login_email(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    data = json.loads(request.body)
+    email = data.get("email")
+
+    # Ensure user exists
+    user = get_object_or_404(User, email=email)
+
+    # Create a JWT token valid for 15 minutes
+    payload = {
+        "user_id": user.id,
+        "exp": int((now() + timedelta(minutes=15)).timestamp()),
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+    # Send login link via email
+    login_link = f"{URL}/auth-login?token={token}"
+    send_mail(
+        "Your Secure Login Link",
+        f"Click this link to log in and reset your password: {login_link}",
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+
+    return JsonResponse({"message": "Login link sent!"}, status=200)
+
+@csrf_exempt
+def magic_login(request):
+    if request.method == "GET":
+        token = request.GET.get("token")
+    elif request.method == "POST":
+        data = json.loads(request.body)
+        token = data.get("token")
+    else:
+        return JsonResponse({"error": "Invalid request method."}, status=400)
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        user = get_object_or_404(User, id=payload["user_id"])
+        login(request, user)  # Log in the user using Django's session
+
+        # Generate tokens using Simple JWT
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        response = JsonResponse({
+            "message": "Logged in successfully!",
+            "user": {"email": user.email},
+        })
+        # In development, set secure=False so cookies are accepted over HTTP.
+        response.set_cookie("access_token", access_token, max_age=7*24*60*60, secure=False, samesite="Lax")
+        response.set_cookie("refresh_token", refresh_token, max_age=30*24*60*60, secure=False, samesite="Lax")
+        return response
+
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Token has expired."}, status=400)
+    except jwt.InvalidTokenError:
+        return JsonResponse({"error": "Invalid token."}, status=400)
+
+########## CHANGE secure=True FOR DEPLOYMENT
+
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        new_password = request.data.get("password")
+
+        if not new_password:
+            return Response({"error": "Password is required."}, status=400)
+
+        try:
+            print("ChangePasswordView called. New password:", new_password)
+            print("Before password change (hashed):", request.user.password)
+
+            request.user.set_password(new_password)
+            request.user.save()
+            request.user.refresh_from_db()
+            print("After password change (hashed):", request.user.password)
+
+            
+
+            # Force clear Django’s authentication cache
+            request.user = User.objects.get(pk=request.user.pk)
+            
+            logout(request)
+
+            response = Response({"message": "Password updated successfully! You have been logged out."}, status=200)
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+
+            return response
+
+        except Exception as e:
+            print("Error updating password:", str(e))
+            return Response({"error": str(e)}, status=500)
+
+
+            

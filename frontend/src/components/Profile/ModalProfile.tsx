@@ -14,8 +14,8 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
   const [view, setView] = useState<"profile" | "login" | "details">("profile");
   const [autoOpenReset, setAutoOpenReset] = useState(false);
 
+  // Update view based on auth state
   useEffect(() => {
-    // When auth status changes, adjust view
     if (isLoggedIn) {
       setView("profile");
     } else {
@@ -23,7 +23,7 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
     }
   }, [isLoggedIn, user]);
 
-  // Listen for magic login events to force profile details with reset password open.
+  // Listen for magic login event to auto-open the reset password (details) view.
   useEffect(() => {
     const handleMagicLogin = () => {
       setView("details");
@@ -49,22 +49,31 @@ const ModalProfile = ({ isOpen, onClose }: ModalProfileProps) => {
         <div className="flex flex-col items-center space-y-4">
           <p className="text-lg">Welcome, {user?.first_name}!</p>
           <p className="text-sm text-gray-500">{user?.email}</p>
-          <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition" onClick={() => setView("details")}>
-            Go to Profile
+          <button
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            onClick={() => setView("details")}
+          >
+            Reset Password
           </button>
-          <button className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition" onClick={handleLogout}>
+          <button
+            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+            onClick={handleLogout}
+          >
             Log Out
           </button>
         </div>
       ) : view === "profile" ? (
-        <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition" onClick={() => setView("login")}>
+        <button
+          className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          onClick={() => setView("login")}
+        >
           Log In
         </button>
       ) : view === "login" ? (
         <ModalLogin onClose={() => setView("profile")} />
       ) : view === "details" ? (
-        // Pass autoOpenReset flag to ModalProfileDetails
-        <ModalProfileDetails onClose={() => setView("profile")} autoOpenReset={autoOpenReset} />
+        // Pass the autoOpenReset flag so that ModalProfileDetails can open the reset password view immediately if desired.
+        <ModalProfileDetails onClose={() => setView("profile")} /> //autoOpenReset={autoOpenReset} />
       ) : null}
     </div>
   );

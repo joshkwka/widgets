@@ -21,11 +21,15 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-TIME_ZONE = 'Asia/Kolkata'
 EMAIL_HOST_USER = os.getenv("eml", "default@gmail.com")  
 EMAIL_HOST_PASSWORD = os.getenv("app-pwd", "default-app-password")  
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+AUTH_USER_MODEL = "api.User"
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend', 
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -43,6 +47,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'api',
+    # 'django_rest_passwordreset'
 ]
 
 MIDDLEWARE = [
@@ -105,3 +110,23 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 ROOT_URLCONF = 'backend.urls'
 WSGI_APPLICATION = 'backend.wsgi.application'
+
+###### DEBUG ######
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / "debug.log",
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
