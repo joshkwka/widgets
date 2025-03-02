@@ -121,67 +121,18 @@ class RegistrationView(APIView):
         print("Serializer Errors:", serializer.errors)  
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# class LoginView(APIView):
-#     def post(self, request, format=None):
-#         email = request.data.get("email")
-#         password = request.data.get("password")
-
-#         print(f"Login Attempt: {email} - Password Entered: {password}")
-
-#         try:
-#             user = User.objects.get(email=email)  
-#         except User.DoesNotExist:
-#             print("No user found with this email.")
-#             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         print(f"Stored Hashed Password: {user.password}")
-#         print(f"Checking password against hashed value...")
-
-#         if not user.check_password(password): 
-#             print("Password check failed!")
-#             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         print("Password check passed! Logging in user.")
-
-#         refresh = RefreshToken.for_user(user)
-#         return Response(
-#             {
-#                 "success": True,
-#                 "message": "You are now logged in!",
-#                 "access": str(refresh.access_token),
-#                 "refresh": str(refresh),
-#                 "user": {  
-#                     "first_name": user.first_name or "User",
-#                     "last_name": user.last_name or "",
-#                     "email": user.email
-#                 }
-#             },
-#             status=status.HTTP_200_OK,
-#         )
-
-from django.contrib.auth import login
-
 class LoginView(APIView):
     def post(self, request, format=None):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        print(f"🔄 Login Attempt: {email} - Password Entered: {password}")
-
         try:
             user = User.objects.get(email=email)  
         except User.DoesNotExist:
-            print("❌ No user found with this email.")
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
-
-        print(f"🔹 Stored Hashed Password (latest DB value): {user.password}")
-        print(f"🔄 Checking password against hashed value...")
 
         if not user.check_password(password):
-            print("❌ Password check failed!")
             return Response({"success": False, "message": "Invalid Login Credentials!"}, status=status.HTTP_400_BAD_REQUEST)
-
-        print("✅ Password check passed! Logging in user.")
 
         user.backend = "api.auth_backends.EmailBackend"
         login(request, user)
@@ -251,7 +202,7 @@ class VerifyEmailView(APIView):
             status=400
         )
 
-SECRET_KEY = settings.SECRET_KEY  # Use Django's secret key
+SECRET_KEY = settings.SECRET_KEY 
 
 @csrf_exempt
 def send_magic_login_email(request):
@@ -331,16 +282,10 @@ class ChangePasswordView(APIView):
             return Response({"error": "Password is required."}, status=400)
 
         try:
-            print("ChangePasswordView called. New password:", new_password)
-            print("Before password change (hashed):", request.user.password)
-
             request.user.set_password(new_password)
             request.user.save()
             request.user.refresh_from_db()
-            print("After password change (hashed):", request.user.password)
-
             
-
             # Force clear Django’s authentication cache
             request.user = User.objects.get(pk=request.user.pk)
             
