@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import BaseWidget from "../BaseWidget";
 import Clock from "react-clock";
 import DragHandle from "./Helper/DragHandle";
 import "react-clock/dist/Clock.css";
+import { fetchWidgetPreferences, saveWidgetPreferences } from "../../api/auth";
 
 const timezones = [
   { label: "Afghanistan (AFT, UTC+04:30)", value: "Asia/Kabul" },
@@ -53,18 +53,16 @@ export default function ClockWidget({ id }: { id: string }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch user preferences on mount
+  // Fetch preferences from API on mount
   useEffect(() => {
-    const fetchPreferences = async () => {
-      try {
-        const response = await axios.get(`/api/widgets/${id}/`);
-        setTimezone(response.data.timezone);
-        setAnalogMode(response.data.analogMode);
-      } catch (error) {
-        console.error("Error fetching widget preferences:", error);
+    const loadPreferences = async () => {
+      const preferences = await fetchWidgetPreferences(id);
+      if (preferences) {
+        setTimezone(preferences.timezone || "America/Los_Angeles");
+        setAnalogMode(preferences.analogMode || false);
       }
     };
-    fetchPreferences();
+    loadPreferences();
   }, [id]);
 
   // Detects widget resize and updates clock size dynamically
@@ -89,23 +87,6 @@ export default function ClockWidget({ id }: { id: string }) {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Close dropdown if clicked outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownOpen]);
 
   return (
     <BaseWidget id={id} defaultSettings={{ timezone }}>
@@ -133,8 +114,8 @@ export default function ClockWidget({ id }: { id: string }) {
                   className="px-3 py-2 cursor-pointer hover:bg-[var(--hover-blue)] hover:text-[var(--hover-text)] transition-colors duration-200"
                   onClick={() => {
                     setTimezone(tz.value);
+                    saveWidgetPreferences(id, "clock", { timezone: tz.value });
                     setDropdownOpen(false);
-                    axios.put(`/api/widgets/${id}/`, { timezone: tz.value });
                   }}
                 >
                   {tz.label}
@@ -149,30 +130,19 @@ export default function ClockWidget({ id }: { id: string }) {
           {/* Toggle Switch */}
           <div
             className="w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all bg-[var(--border)] pointer-events-auto"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               const newMode = !analogMode;
               setAnalogMode(newMode);
-              axios.put(`/api/widgets/${id}/`, { analogMode: newMode });
+              saveWidgetPreferences(id, "clock", { analogMode: newMode });
             }}
           >
-            <div
-              className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
-                analogMode ? "translate-x-6" : ""
-              }`}
-            />
+            <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${analogMode ? "translate-x-6" : ""}`} />
           </div>
         </div>
 
         {/* MAIN CONTAINER */}
         <div className="flex-grow flex items-center justify-center">
-          {analogMode ? (
-            <Clock value={time} size={size} renderNumbers={false} renderHourMarks={true} renderMinuteMarks={false} />
-          ) : (
-            <span className="font-bold text-[var(--foreground)]" style={{ fontSize: `${size * 0.5}px` }}>
-              {time.toLocaleTimeString("en-US", { timeZone: timezone })}
-            </span>
-          )}
+          {analogMode ? <Clock value={time} size={size} /> : <span className="font-bold text-[var(--foreground)]">{time.toLocaleTimeString()}</span>}
         </div>
       </div>
     </BaseWidget>

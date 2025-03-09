@@ -339,8 +339,6 @@ class DeleteAccountView(APIView):
 
 # Widgets
 
-
-
 class LayoutViewSet(viewsets.ModelViewSet):
     queryset = Layout.objects.all()
     serializer_class = LayoutSerializer
@@ -349,26 +347,49 @@ class LayoutViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
 
-    def perform_create(self, serializer):
-        widgets_data = self.request.data.get("widgets", [])
+    def create(self, request, *args, **kwargs):
+        """Handles adding new widgets to the layout and creates a corresponding WidgetPreference."""
+        user = request.user
+        data = request.data
 
-        if not isinstance(widgets_data, list):  
-            raise ValidationError({"widgets": "Must be a list of widget objects."})
+        # Ensure widget type is provided
+        widget_type = data.get("type")
+        if not widget_type:
+            return Response({"error": "Widget type is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer.save(user=self.request.user, widgets=widgets_data)
+        # Generate a unique widget ID
+        new_widget_id = str(uuid.uuid4())
 
-    def destroy(self, request, *args, **kwargs):
-        """Allow users to delete their own layouts"""
-        instance = self.get_object()
+        # Create a new widget instance with default values
+        new_widget = {
+            "id": new_widget_id,
+            "type": widget_type,
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2,
+        }
+
+        # Fetch or create user layout
+        layout, _ = Layout.objects.get_or_create(user=user, name="default")
+
+        # Append new widget to the existing list
+        layout.widgets.append(new_widget)
+        layout.save()
+
+        # Create a WidgetPreference entry with default settings
+        WidgetPreference.objects.create(
+            user=user,
+            widget_id=new_widget_id,
+            widget_type=widget_type,
+            settings={}  
+        )
+
+        return Response(
+            {"message": "Widget added successfully", "widget": new_widget},
+            status=status.HTTP_201_CREATED
+        )
         
-        if instance.user != request.user:
-            return Response(
-                {"error": "Unauthorized action"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        self.perform_destroy(instance)
-        return Response({"message": "Layout deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-
 class WidgetPreferenceViewSet(viewsets.ModelViewSet):
     queryset = WidgetPreference.objects.all()
     serializer_class = WidgetPreferenceSerializer
@@ -379,15 +400,23 @@ class WidgetPreferenceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         widget_id = self.request.data.get("widget_id")
+        widget_type = self.request.data.get("widget_type")
 
         # Validate widget_id as UUID
+        if not widget_id:
+            raise ValidationError({"widget_id": ["This field is required."]})
+        if not widget_type:
+            raise ValidationError({"widget_type": ["This field is required."]})
+
         try:
             widget_uuid = uuid.UUID(widget_id)
         except ValueError:
-            raise ValidationError({"widget_id": "Invalid UUID format."})
+            raise ValidationError({"widget_id": ["Invalid UUID format."]})
 
-        # Save preference
-        serializer.save(user=self.request.user, widget_id=str(widget_uuid))
+        # Save widget preference
+        serializer.save(user=self.request.user, widget_id=str(widget_uuid), widget_type=widget_type)
+
+
 
     def destroy(self, request, *args, **kwargs):
         """Allow users to delete their own widget preferences"""

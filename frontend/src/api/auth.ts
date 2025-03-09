@@ -233,28 +233,6 @@ export const deleteUserAccount = async (): Promise<any> => {
 };
 
 // widgets:
-export const saveWidgetPreferences = async (widgetId: string, preferences: object) => {
-    const token = Cookies.get("access_token");
-    if (!token) {
-        console.error("No access token found. Cannot save widget preferences.");
-        return;
-    }
-
-    try {
-        await axios.put(
-            `${API_BASE_URL}/widgets/${widgetId}/`,
-            preferences,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log(`Widget ${widgetId} preferences saved successfully.`);
-    } catch (error: unknown) {
-        const err = error as AxiosError;
-        console.error(`Error saving preferences for widget ${widgetId}:`, err.message);
-        if (err.response) {
-            console.error("Response Data:", err.response.data);
-        }
-    }
-};
 
 export const fetchUserWidgets = async (): Promise<any[] | null> => {
     const token = Cookies.get("access_token");
@@ -264,7 +242,7 @@ export const fetchUserWidgets = async (): Promise<any[] | null> => {
     }
 
     try {
-        const response = await axios.get(`${API_BASE_URL}/widgets/`, {
+        const response = await axios.get(`${API_BASE_URL}/layouts/`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -273,9 +251,126 @@ export const fetchUserWidgets = async (): Promise<any[] | null> => {
     } catch (error: unknown) {
         const err = error as AxiosError;
         console.error("Error fetching user widgets:", err.message);
-        if (err.response) {
-            console.error("Response Data:", err.response.data);
-        }
         return null;
     }
 };
+
+export const addWidgetToLayout = async (type: string) => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.error("No access token found. Cannot add widget.");
+        return null;
+    }
+
+    try {
+        // Step 1: Add the widget to the user's layout in the backend
+        const response = await axios.post(`${API_BASE_URL}/layouts/`, { type }, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("Widget added:", response.data);
+        return response.data.widget; // Return the newly created widget from backend
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+        console.error("Error adding widget:", err.message);
+        return null;
+    }
+};
+
+export const saveWidgetPreferences = async (widgetId: string, widgetType: string, preferences: object) => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.error("No access token found. Cannot save widget preferences.");
+        return;
+    }
+
+    try {
+        console.log(`Checking if preferences exist for widget ${widgetId}...`);
+        await axios.get(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`Preferences already exist for widget ${widgetId}, updating...`);
+        await axios.post(
+            `${API_BASE_URL}/widget-preferences/`,
+            { 
+                widget_id: widgetId, 
+                widget_type: "clock", 
+                settings: preferences 
+            },  
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+
+        if (err.response?.status === 404) {
+            console.warn(`Preferences not found for widget ${widgetId}. Creating new preferences...`);
+            try {
+                await axios.post(
+                    `${API_BASE_URL}/widget-preferences/`,
+                    {
+                        widget_id: widgetId,   
+                        widget_type: widgetType, 
+                        settings: preferences  
+                    },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+
+                console.log(`Created preferences for widget ${widgetId}`);
+            } catch (creationError) {
+                console.error(`Error creating widget preferences for ${widgetId}:`, creationError);
+            }
+        } else {
+            console.error(`Error checking preferences for widget ${widgetId}:`, err.message);
+        }
+    }
+};
+
+export const deleteWidgetFromLayout = async (widgetId: string) => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.warn("No access token found. Cannot delete widget.");
+        return;
+    }
+
+    try {
+        await axios.delete(`${API_BASE_URL}/layouts/${widgetId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`Deleted widget ${widgetId}`);
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+        console.error(`Error deleting widget:`, err.message);
+    }
+};
+
+export const fetchWidgetPreferences = async (widgetId: string): Promise<any | null> => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.warn("No access token found. Cannot fetch widget preferences.");
+        return null;
+    }
+
+    try {
+        const response = await axios.get(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`Fetched preferences for widget ${widgetId}:`, response.data);
+        return response.data;
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+
+        if (err.response?.status === 404) {
+            console.warn(`Preferences not found for widget ${widgetId}. Creating default preferences...`);
+            await saveWidgetPreferences(widgetId, "clock", { timezone: "America/Los_Angeles", analogMode: false }); 
+        } else {
+            console.error(`Error fetching preferences for widget ${widgetId}:`, err.message);
+        }
+        
+        return null;
+    }
+};
+
