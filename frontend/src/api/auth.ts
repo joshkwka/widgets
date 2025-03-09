@@ -65,6 +65,10 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
         });
 
         console.log("Fetched User Data:", response.data);
+
+        // Fetch user widgets after fetching user profile
+        await fetchUserWidgets();
+
         return response.data.user;
     } catch (error: unknown) {
         const err = error as AxiosError;
@@ -82,6 +86,7 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
         return null;
     }
 };
+
 
 
 export const loginUser = async (email: string, password: string): Promise<AuthResponse> => {
@@ -225,4 +230,52 @@ export const deleteUserAccount = async (): Promise<any> => {
     });
 
     return response.data;
+};
+
+// widgets:
+export const saveWidgetPreferences = async (widgetId: string, preferences: object) => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.error("No access token found. Cannot save widget preferences.");
+        return;
+    }
+
+    try {
+        await axios.put(
+            `${API_BASE_URL}/widgets/${widgetId}/`,
+            preferences,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log(`Widget ${widgetId} preferences saved successfully.`);
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+        console.error(`Error saving preferences for widget ${widgetId}:`, err.message);
+        if (err.response) {
+            console.error("Response Data:", err.response.data);
+        }
+    }
+};
+
+export const fetchUserWidgets = async (): Promise<any[] | null> => {
+    const token = Cookies.get("access_token");
+    if (!token) {
+        console.warn("No access token found. Cannot fetch widgets.");
+        return null;
+    }
+
+    try {
+        const response = await axios.get(`${API_BASE_URL}/widgets/`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("Fetched user widgets:", response.data);
+        return response.data;
+    } catch (error: unknown) {
+        const err = error as AxiosError;
+        console.error("Error fetching user widgets:", err.message);
+        if (err.response) {
+            console.error("Response Data:", err.response.data);
+        }
+        return null;
+    }
 };

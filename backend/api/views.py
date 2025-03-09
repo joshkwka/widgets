@@ -2,6 +2,7 @@
 
 import json
 import jwt  
+import uuid
 
 from datetime import timedelta
 from django.conf import settings
@@ -15,15 +16,16 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 
-from .models import User
-from .serializers import UserSerializer
+from .models import User, Layout, WidgetPreference
+from .serializers import LayoutSerializer, WidgetPreferenceSerializer, UserSerializer
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:3000"
@@ -334,3 +336,70 @@ class DeleteAccountView(APIView):
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
         return response
+
+# Widgets
+
+
+
+class LayoutViewSet(viewsets.ModelViewSet):
+    queryset = Layout.objects.all()
+    serializer_class = LayoutSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        widgets_data = self.request.data.get("widgets", [])
+
+        if not isinstance(widgets_data, list):  
+            raise ValidationError({"widgets": "Must be a list of widget objects."})
+
+        serializer.save(user=self.request.user, widgets=widgets_data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Allow users to delete their own layouts"""
+        instance = self.get_object()
+        
+        if instance.user != request.user:
+            return Response(
+                {"error": "Unauthorized action"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        self.perform_destroy(instance)
+        return Response({"message": "Layout deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+class WidgetPreferenceViewSet(viewsets.ModelViewSet):
+    queryset = WidgetPreference.objects.all()
+    serializer_class = WidgetPreferenceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        widget_id = self.request.data.get("widget_id")
+
+        # Validate widget_id as UUID
+        try:
+            widget_uuid = uuid.UUID(widget_id)
+        except ValueError:
+            raise ValidationError({"widget_id": "Invalid UUID format."})
+
+        # Save preference
+        serializer.save(user=self.request.user, widget_id=str(widget_uuid))
+
+    def destroy(self, request, *args, **kwargs):
+        """Allow users to delete their own widget preferences"""
+        instance = self.get_object()
+        
+        # Ensure the user is deleting their own widget
+        if instance.user != request.user:
+            return Response(
+                {"error": "Unauthorized action"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        self.perform_destroy(instance)
+        return Response({"message": "Widget preference deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+

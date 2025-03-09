@@ -1,9 +1,15 @@
 # api/urls.py
 
-from django.urls import path
+from django.urls import path, include
 from .views import RegistrationView, LoginView, ProfileView, ChangePasswordView, UpdateProfileView, DeleteAccountView, send_magic_login_email, magic_login
+from .views import LayoutViewSet, WidgetPreferenceViewSet
+
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
-# from django_rest_passwordreset.views import reset_password_request_token, reset_password_confirm, reset_password_validate_token
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r"layouts", LayoutViewSet)
+router.register(r"widget-preferences", WidgetPreferenceViewSet)
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -15,9 +21,10 @@ urlpatterns = [
     path('send-magic-link/', send_magic_login_email, name="send_magic_link"),
     path('auth-login/', magic_login, name="magic_login"),
     path('change-password/', ChangePasswordView.as_view(), name="change_password"),
-    # path('password_reset/', reset_password_request_token, name="password_reset"),
-    # path('password_reset/confirm/', reset_password_confirm, name="password_reset_confirm"),
-    # path('password_reset/validate_token/', reset_password_validate_token, name="password_reset_validate_token"),
     path('update-profile/', UpdateProfileView.as_view(), name='update-profile'),
     path('delete-account/', DeleteAccountView.as_view(), name='delete-account'),
+
+    # Automatically register layout and widget preference routes
+    path("", include(router.urls)),
 ]
+

@@ -4,6 +4,7 @@ import App from './App';
 
 import './styles/index.css';
 import './styles/modal.css';
+import './styles/widgets.css'
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

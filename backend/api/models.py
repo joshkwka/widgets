@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+import uuid
 
 class UserManager(BaseUserManager):
     def create_user(self, email, first_name, last_name, password=None):
@@ -47,3 +48,24 @@ class Token(models.Model):
     expires_at = models.DateTimeField()
     user_id = models.IntegerField()
     is_used = models.BooleanField(default=False)
+
+
+# Widgets
+
+class Layout(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    # Stores widget positions & settings in a format compatible with react-grid-layout
+    widgets = models.JSONField(default=list)  # Example: [{"i": "clock1", "x": 0, "y": 0, "w": 2, "h": 2, "type": "clock"}]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.name}"
+
+class WidgetPreference(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    widget_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)  # Unique ID per widget instance
+    widget_type = models.CharField(max_length=50)  # E.g., "clock", "todo"
+    settings = models.JSONField(default=dict)  # Store user-specific widget preferences
+
+    def __str__(self):
+        return f"{self.user.email} - {self.widget_type} ({self.widget_id})"
