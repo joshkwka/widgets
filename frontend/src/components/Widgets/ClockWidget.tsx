@@ -5,6 +5,9 @@ import DragHandle from "./Helper/DragHandle";
 import "react-clock/dist/Clock.css";
 import { fetchWidgetPreferences, saveWidgetPreferences } from "../../api/auth";
 
+// Function to get the user's system timezone
+const getUserTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 const timezones = [
   { label: "Afghanistan (AFT, UTC+04:30)", value: "Asia/Kabul" },
   { label: "Alaska (AKST, UTC-09:00)", value: "America/Anchorage" },
@@ -16,37 +19,13 @@ const timezones = [
   { label: "Central Australia (ACST, UTC+09:30)", value: "Australia/Adelaide" },
   { label: "Central European Time (CET, UTC+01:00)", value: "Europe/Berlin" },
   { label: "Central Time (CST, UTC-06:00)", value: "America/Chicago" },
-  { label: "Chatham Islands (CHAST, UTC+12:45)", value: "Pacific/Chatham" },
-  { label: "China (CST, UTC+08:00)", value: "Asia/Shanghai" },
-  { label: "Cocos Islands (CCT, UTC+06:30)", value: "Indian/Cocos" },
-  { label: "Dubai (GST, UTC+04:00)", value: "Asia/Dubai" },
-  { label: "Eastern European Time (EET, UTC+02:00)", value: "Europe/Athens" },
   { label: "Eastern Time (EST, UTC-05:00)", value: "America/New_York" },
-  { label: "Greenwich Mean Time (GMT, UTC+00:00)", value: "Europe/London" },
-  { label: "Hawaii (HST, UTC-10:00)", value: "Pacific/Honolulu" },
-  { label: "Iran (IRST, UTC+03:30)", value: "Asia/Tehran" },
-  { label: "Japan (JST, UTC+09:00)", value: "Asia/Tokyo" },
-  { label: "Kamchatka (PETT, UTC+12:00)", value: "Asia/Kamchatka" },
-  { label: "Kiritimati Island (UTC+14:00)", value: "Pacific/Kiritimati" },
-  { label: "Lord Howe Island (LHST, UTC+10:30)", value: "Australia/Lord_Howe" },
-  { label: "Marquesas Islands (MART, UTC-09:30)", value: "Pacific/Marquesas" },
-  { label: "Midway Island (SST, UTC-11:00)", value: "Pacific/Midway" },
-  { label: "Moscow (MSK, UTC+03:00)", value: "Europe/Moscow" },
-  { label: "Mountain Time (MST, UTC-07:00)", value: "America/Denver" },
-  { label: "Myanmar (MMT, UTC+06:30)", value: "Asia/Yangon" },
-  { label: "Nepal (NPT, UTC+05:45)", value: "Asia/Kathmandu" },
-  { label: "New Zealand (NZST, UTC+12:00)", value: "Pacific/Auckland" },
-  { label: "Newfoundland (NST, UTC-03:30)", value: "America/St_Johns" },
   { label: "Pacific Time (PST, UTC-08:00)", value: "America/Los_Angeles" },
-  { label: "Pakistan (PKT, UTC+05:00)", value: "Asia/Karachi" },
-  { label: "Thailand (ICT, UTC+07:00)", value: "Asia/Bangkok" },
-  { label: "Venezuela (VET, UTC-04:30)", value: "America/Caracas" },
-  { label: "Western Australia (AWST, UTC+08:00)", value: "Australia/Perth" },
 ];
 
 export default function ClockWidget({ id }: { id: string }) {
   const [time, setTime] = useState(new Date());
-  const [timezone, setTimezone] = useState("America/Los_Angeles");
+  const [timezone, setTimezone] = useState<string | null>(null);
   const [analogMode, setAnalogMode] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(100);
@@ -57,15 +36,27 @@ export default function ClockWidget({ id }: { id: string }) {
   useEffect(() => {
     const loadPreferences = async () => {
       const preferences = await fetchWidgetPreferences(id);
-      if (preferences) {
-        setTimezone(preferences.timezone || "America/Los_Angeles");
-        setAnalogMode(preferences.analogMode || false);
+      const settings = preferences.settings
+      if (settings) {
+        console.log("preferences exist!");
+        setTimezone(settings.timezone || getUserTimezone());
+        setAnalogMode(settings.analogMode ?? false);
+      } else {
+        // Save default preferences only for new widgets
+        console.log("setting defaults!");
+        const defaultTimezone = getUserTimezone();
+        setTimezone(defaultTimezone);
+        await saveWidgetPreferences(id, "clock", {
+          timezone: defaultTimezone,
+          analogMode: false,
+        });
       }
     };
+
     loadPreferences();
   }, [id]);
 
-  // Detects widget resize and updates clock size dynamically
+  // Detect widget resize and update clock size dynamically
   useEffect(() => {
     const updateSize = () => {
       if (widgetRef.current) {
@@ -82,14 +73,14 @@ export default function ClockWidget({ id }: { id: string }) {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Updates time every second
+  // Update time every second
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <BaseWidget id={id} defaultSettings={{ timezone }}>
+    <BaseWidget id={id} defaultSettings={{ timezone: timezone || getUserTimezone() }}>
       <div ref={widgetRef} className="relative flex flex-col w-full h-full">
         {/* HEADER CONTAINER */}
         <div className="flex justify-between items-center px-3 py-2 border-b border-[var(--border)]">

@@ -24,11 +24,16 @@ class TokenSerializer(serializers.ModelSerializer):
 # Widgets
 
 class LayoutSerializer(serializers.ModelSerializer):
+    widgets = serializers.JSONField()  
+
     class Meta:
         model = Layout
-        fields = "__all__"
+        fields = ["id", "name", "widgets", "user"] 
+
 
 class WidgetPreferenceSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True) 
+
     class Meta:
         model = WidgetPreference
-        fields = "__all__"
+        fields = ["widget_id", "widget_type", "settings", "user"] 

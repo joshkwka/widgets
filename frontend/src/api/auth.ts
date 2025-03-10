@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import axios, { AxiosError } from "axios";
+import { v4 as uuidv4 } from "uuid"; 
 
 const API_BASE_URL = "http://localhost:8000/api";
 
@@ -158,18 +159,6 @@ export const registerUser = async (first_name: string, last_name: string, email:
     }
 };
 
-// export const requestPasswordReset = async (email: string) => {
-//     return axios.post(`${API_BASE_URL}/password_reset/`, { email });
-// };
-
-// export const validateResetToken = async (token: string) => {
-//     return axios.post(`${API_BASE_URL}/password_reset/validate_token/`, { token });
-// };
-
-// export const resetPassword = async (token: string, password: string) => {
-//     return axios.post(`${API_BASE_URL}/password_reset/confirm/`, { token, password });
-// };
-
 export const sendMagicLoginEmail = async (email: string) => {
     return axios.post(`${API_BASE_URL}/send-magic-link/`, { email });
 };
@@ -178,7 +167,6 @@ export const magicLogin = async (token: string) => {
     return axios.post(`${API_BASE_URL}/auth-login/`, { token }, { withCredentials: true });
 };
 
-// Update password & log out after change
 export const updatePassword = async (password: string) => {
     const token = Cookies.get("access_token");
 
@@ -195,11 +183,9 @@ export const updatePassword = async (password: string) => {
         if (response.status === 200) {
             console.log("Password updated successfully. Logging out...");
 
-            // Remove tokens from cookies
             Cookies.remove("access_token");
             Cookies.remove("refresh_token");
 
-            // Dispatch logout event (if needed elsewhere)
             window.dispatchEvent(new Event("logout"));
 
             return response.data;
@@ -234,7 +220,23 @@ export const deleteUserAccount = async (): Promise<any> => {
 
 // widgets:
 
-export const fetchUserWidgets = async (): Promise<any[] | null> => {
+interface Widget {
+    i: string;  // UUID of the widget
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    type: string;
+  }
+
+interface LayoutData {
+    id: number;  // Layout ID
+    name: string;
+    widgets: Widget[];  // Ensure widgets are typed correctly
+    user: number;
+  }
+
+export const fetchUserWidgets = async (): Promise<LayoutData[] | null> => {
     const token = Cookies.get("access_token");
     if (!token) {
         console.warn("No access token found. Cannot fetch widgets.");
@@ -247,13 +249,29 @@ export const fetchUserWidgets = async (): Promise<any[] | null> => {
         });
 
         console.log("Fetched user widgets:", response.data);
-        return response.data;
+
+        // Return full layouts, not just widgets
+        return response.data.map((layout: any) => ({
+            id: layout.id,
+            name: layout.name,
+            user: layout.user,
+            widgets: layout.widgets.map((widget: any) => ({
+                i: widget.id,  // Ensure this matches frontend expectations
+                x: widget.x,
+                y: widget.y,
+                w: widget.w,
+                h: widget.h,
+                type: widget.type,
+            }))
+        }));
     } catch (error: unknown) {
         const err = error as AxiosError;
         console.error("Error fetching user widgets:", err.message);
         return null;
     }
 };
+
+
 
 export const addWidgetToLayout = async (type: string) => {
     const token = Cookies.get("access_token");
@@ -263,13 +281,14 @@ export const addWidgetToLayout = async (type: string) => {
     }
 
     try {
-        // Step 1: Add the widget to the user's layout in the backend
-        const response = await axios.post(`${API_BASE_URL}/layouts/`, { type }, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await axios.post(
+            `${API_BASE_URL}/layouts/`,
+            { type }, 
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
 
         console.log("Widget added:", response.data);
-        return response.data.widget; // Return the newly created widget from backend
+        return response.data; 
     } catch (error: unknown) {
         const err = error as AxiosError;
         console.error("Error adding widget:", err.message);
@@ -277,7 +296,7 @@ export const addWidgetToLayout = async (type: string) => {
     }
 };
 
-export const saveWidgetPreferences = async (widgetId: string, widgetType: string, preferences: object) => {
+export const saveWidgetPreferences = async (widgetId: string, widgetType: string, newPreferences: object) => {
     const token = Cookies.get("access_token");
     if (!token) {
         console.error("No access token found. Cannot save widget preferences.");
@@ -286,21 +305,33 @@ export const saveWidgetPreferences = async (widgetId: string, widgetType: string
 
     try {
         console.log(`Checking if preferences exist for widget ${widgetId}...`);
-        await axios.get(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
+        
+        // Fetch existing preferences
+        const response = await axios.get(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
-        console.log(`Preferences already exist for widget ${widgetId}, updating...`);
-        await axios.post(
-            `${API_BASE_URL}/widget-preferences/`,
+        const existingPreferences = response.data.settings || {};
+        console.log(`Existing preferences for widget ${widgetId}:`, existingPreferences);
+
+        // ✅ Merge new settings with existing settings
+        const mergedPreferences = { ...existingPreferences, ...newPreferences };
+
+        console.log(`Updating preferences for widget ${widgetId} with:`, mergedPreferences);
+
+        // ✅ Send full payload including `widget_id` and `widget_type`
+        await axios.put(
+            `${API_BASE_URL}/widget-preferences/${widgetId}/`,
             { 
-                widget_id: widgetId, 
-                widget_type: "clock", 
-                settings: preferences 
-            },  
+                widget_id: widgetId,     
+                widget_type: widgetType, 
+                settings: mergedPreferences 
+            },
             { headers: { Authorization: `Bearer ${token}` } }
         );
-        
+
+        console.log(`Updated preferences for widget ${widgetId}`);
+
     } catch (error: unknown) {
         const err = error as AxiosError;
 
@@ -310,9 +341,9 @@ export const saveWidgetPreferences = async (widgetId: string, widgetType: string
                 await axios.post(
                     `${API_BASE_URL}/widget-preferences/`,
                     {
-                        widget_id: widgetId,   
-                        widget_type: widgetType, 
-                        settings: preferences  
+                        widget_id: widgetId,
+                        widget_type: widgetType,
+                        settings: newPreferences,
                     },
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
@@ -322,10 +353,14 @@ export const saveWidgetPreferences = async (widgetId: string, widgetType: string
                 console.error(`Error creating widget preferences for ${widgetId}:`, creationError);
             }
         } else {
-            console.error(`Error checking preferences for widget ${widgetId}:`, err.message);
+            console.error(`Error checking/updating preferences for widget ${widgetId}:`, err.message);
         }
     }
 };
+
+
+
+
 
 export const deleteWidgetFromLayout = async (widgetId: string) => {
     const token = Cookies.get("access_token");
@@ -340,11 +375,19 @@ export const deleteWidgetFromLayout = async (widgetId: string) => {
         });
 
         console.log(`Deleted widget ${widgetId}`);
+
+        await axios.delete(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`Deleted preferences for widget ${widgetId}`);
+        
     } catch (error: unknown) {
         const err = error as AxiosError;
         console.error(`Error deleting widget:`, err.message);
     }
 };
+
 
 export const fetchWidgetPreferences = async (widgetId: string): Promise<any | null> => {
     const token = Cookies.get("access_token");

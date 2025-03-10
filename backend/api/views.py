@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -348,21 +349,18 @@ class LayoutViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        """Handles adding new widgets to the layout and creates a corresponding WidgetPreference."""
+        """Handles adding new widgets to the layout."""
         user = request.user
         data = request.data
 
-        # Ensure widget type is provided
         widget_type = data.get("type")
         if not widget_type:
             return Response({"error": "Widget type is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Generate a unique widget ID
-        new_widget_id = str(uuid.uuid4())
+        widget_uuid = uuid.uuid4()  
 
-        # Create a new widget instance with default values
         new_widget = {
-            "id": new_widget_id,
+            "id": str(widget_uuid),
             "type": widget_type,
             "x": 0,
             "y": 0,
@@ -370,30 +368,17 @@ class LayoutViewSet(viewsets.ModelViewSet):
             "h": 2,
         }
 
-        # Fetch or create user layout
         layout, _ = Layout.objects.get_or_create(user=user, name="default")
-
-        # Append new widget to the existing list
         layout.widgets.append(new_widget)
         layout.save()
 
-        # Create a WidgetPreference entry with default settings
-        WidgetPreference.objects.create(
-            user=user,
-            widget_id=new_widget_id,
-            widget_type=widget_type,
-            settings={}  
-        )
-
-        return Response(
-            {"message": "Widget added successfully", "widget": new_widget},
-            status=status.HTTP_201_CREATED
-        )
+        return Response({"message": "Widget added successfully", "widget": new_widget}, status=status.HTTP_201_CREATED)
         
 class WidgetPreferenceViewSet(viewsets.ModelViewSet):
     queryset = WidgetPreference.objects.all()
     serializer_class = WidgetPreferenceSerializer
     permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "widget_id"  
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
@@ -402,7 +387,6 @@ class WidgetPreferenceViewSet(viewsets.ModelViewSet):
         widget_id = self.request.data.get("widget_id")
         widget_type = self.request.data.get("widget_type")
 
-        # Validate widget_id as UUID
         if not widget_id:
             raise ValidationError({"widget_id": ["This field is required."]})
         if not widget_type:
@@ -413,11 +397,29 @@ class WidgetPreferenceViewSet(viewsets.ModelViewSet):
         except ValueError:
             raise ValidationError({"widget_id": ["Invalid UUID format."]})
 
-        # Save widget preference
-        serializer.save(user=self.request.user, widget_id=str(widget_uuid), widget_type=widget_type)
+        existing_preference = WidgetPreference.objects.filter(widget_id=str(widget_uuid)).first()
+        if existing_preference:
+            raise ValidationError({"widget_id": ["A preference already exists for this widget."]})
 
+        with transaction.atomic():  
+            serializer.save(user=self.request.user, widget_id=str(widget_uuid), widget_type=widget_type)
+        
+    def perform_update(self, serializer):
+        """Merge existing settings with new settings instead of overwriting."""
+        instance = serializer.instance 
+        new_settings = self.request.data.get("settings", {})
 
+        if not isinstance(new_settings, dict):
+            raise ValidationError({"settings": ["Invalid format. Must be a JSON object."]})
 
+        instance.settings.update(new_settings)
+        instance.save()
+
+        return Response(
+            {"message": "Preferences updated successfully", "settings": instance.settings},
+            status=status.HTTP_200_OK,
+        )
+    
     def destroy(self, request, *args, **kwargs):
         """Allow users to delete their own widget preferences"""
         instance = self.get_object()

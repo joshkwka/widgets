@@ -3,15 +3,23 @@ import "react-grid-layout/css/styles.css";
 import GridLayout, { Layout } from "react-grid-layout";
 import ClockWidget from "./Widgets/ClockWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
-import { fetchUserWidgets, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
+import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
+import { v4 as uuidv4 } from "uuid";
 
 interface Widget {
-  id: string;
-  type: string;
+  i: string;  // UUID of the widget
   x: number;
   y: number;
   w: number;
   h: number;
+  type: string;
+}
+
+interface LayoutData {
+  id: number;  // Layout ID
+  name: string;
+  widgets: Widget[];  // Ensure widgets are typed correctly
+  user: number;
 }
 
 interface WidgetLayout extends Layout {
@@ -26,27 +34,35 @@ export default function GridDashboard() {
 
   useEffect(() => {
     const loadWidgets = async () => {
-      const widgets = await fetchUserWidgets();
-      if (widgets) {
-        const formattedLayout: WidgetLayout[] = widgets.map((widget) => ({
-          i: widget.id,
-          x: widget.x,
-          y: widget.y,
-          w: widget.w,
-          h: widget.h,
-          type: widget.type,
-        }));
+      const layouts: LayoutData[] | null = await fetchUserWidgets();
+      if (layouts) {
+        const formattedLayout: WidgetLayout[] = layouts.flatMap((layout) =>
+          layout.widgets.map((widget) => ({
+            i: widget.i,  
+            x: widget.x,
+            y: widget.y,
+            w: widget.w,
+            h: widget.h,
+            type: widget.type,
+          }))
+        );
+  
         setLayout(formattedLayout);
+  
+        // Fetch preferences for each widget
+        await Promise.all(formattedLayout.map((widget) => fetchWidgetPreferences(widget.i)));
       }
     };
   
     loadWidgets();
   }, []);
+  
+  
+  
 
   const handleLayoutChange = async (newLayout: Layout[]) => {
     const updatedLayout: WidgetLayout[] = newLayout.map((layoutItem) => ({
         i: layoutItem.i,
-        id: layoutItem.i,
         x: layoutItem.x,
         y: layoutItem.y,
         w: layoutItem.w,
@@ -70,33 +86,22 @@ export default function GridDashboard() {
     } catch (error) {
         console.error("Error saving layout:", error);
     }
+  };
+
+  const handleAddWidget = async (type: string) => {
+    try {
+        const newWidget = await addWidgetToLayout(type); 
+        if (!newWidget || !newWidget.id) {
+            console.error("Failed to add widget to layout.");
+            return;
+        }
+        setLayout((prevLayout) => [...prevLayout, newWidget]); 
+        await saveWidgetPreferences(newWidget.id, newWidget.type, { timezone: "America/Los_Angeles", analogMode: false });
+
+    } catch (error) {
+        console.error("Error adding widget:", error);
+    }
 };
-
-
-const handleAddWidget = async (type: string) => {
-  try {
-      const newWidget = await addWidgetToLayout(type);
-      if (!newWidget) {
-          console.error("Failed to add widget to layout.");
-          return;
-      }
-
-      const widgetWithId = {
-          ...newWidget,
-          id: newWidget.id || newWidget.i || `widget-${Date.now()}`, // Ensure unique ID
-      };
-
-      setLayout((prevLayout) => [...prevLayout, widgetWithId]);
-
-      // Now correctly passing `widgetType`
-      await saveWidgetPreferences(widgetWithId.id, widgetWithId.type, { timezone: "America/Los_Angeles", analogMode: false });
-  } catch (error) {
-      console.error("Error adding widget:", error);
-  }
-};
-
-
-
 
 
   const handleRightClick = (event: React.MouseEvent, widgetId: string) => {
