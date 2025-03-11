@@ -4,10 +4,9 @@ import GridLayout, { Layout } from "react-grid-layout";
 import ClockWidget from "./Widgets/ClockWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
 import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
-import { v4 as uuidv4 } from "uuid";
 
 interface Widget {
-  i: string;  // UUID of the widget
+  i: string; 
   x: number;
   y: number;
   w: number;
@@ -16,15 +15,16 @@ interface Widget {
 }
 
 interface LayoutData {
-  id: number;  // Layout ID
+  id: number;  
   name: string;
-  widgets: Widget[];  // Ensure widgets are typed correctly
+  widgets: Widget[]; 
   user: number;
 }
 
 interface WidgetLayout extends Layout {
   type: string;
 }
+
 
 export default function GridDashboard() {
   const [layout, setLayout] = useState<WidgetLayout[]>([]);
@@ -96,27 +96,73 @@ export default function GridDashboard() {
       console.error("Error saving layout:", error);
     }
   };
-  
-  
 
   const handleAddWidget = async (type: string) => {
     try {
-        const newLayout = await addWidgetToLayout(type); 
-        const newWidget = newLayout.widget
+      console.log("Adding widget...");
+  
+      // Request Backend to Add Widget
+      const newLayout = await addWidgetToLayout(type);
+      const newWidget = newLayout.widget
+      console.log("🛠 Debugging newWidget:", newWidget);
 
-        if (!newWidget || !newWidget.id) {
-            console.error("Failed to add widget to layout.");
-            return;
+      if (!newWidget || !newWidget.id) {
+        console.error("Failed to add widget: No valid ID returned.", newWidget);
+        return;
+      }
+
+      
+      console.log(`Widget ${newWidget.id} added. Fetching preferences...`);
+  
+      // Retry Fetching Preferences
+      let preferences = null;
+      let attempts = 0;
+      while (!preferences && attempts < 5) {
+        try {
+          preferences = await fetchWidgetPreferences(newWidget.id);
+        } catch (error) {
+          console.warn(`⚠️ Attempt ${attempts + 1}: Failed to fetch preferences for widget ${newWidget.id}`);
         }
-        setLayout((prevLayout) => [...prevLayout, newWidget]); 
-        await saveWidgetPreferences(newWidget.id, newWidget.type, { timezone: "America/Los_Angeles", analogMode: false });
-
+        if (!preferences) await new Promise((resolve) => setTimeout(resolve, 500));
+        attempts++;
+      }
+  
+      if (!preferences || !preferences.settings) {
+        console.error(`Failed to fetch preferences for widget ${newWidget.id} after retries.`);
+        return;
+      }
+  
+      console.log(`Preferences loaded for widget ${newWidget.id}:`, preferences);
+  
+      // Extract Safe Values
+      const x = preferences.settings?.x ?? 0;
+      const y = preferences.settings?.y ?? 0;
+      const w = preferences.settings?.w ?? 6;
+      const h = preferences.settings?.h ?? 3;
+  
+      // Ensure Layout Updates Properly
+      console.log("Updating Layout...");
+      setLayout((prevLayout) => {
+        const updatedLayout = [
+          ...prevLayout,
+          {
+            i: newWidget.id,
+            x,
+            y,
+            w,
+            h,
+            type,
+          } as WidgetLayout,
+        ];
+        console.log("Updated Layout:", updatedLayout);
+        return updatedLayout;
+      });
+  
     } catch (error) {
-        console.error("Error adding widget:", error);
+      console.error("Error in handleAddWidget:", error);
     }
-};
-
-
+  };
+  
   const handleRightClick = (event: React.MouseEvent, widgetId: string) => {
     event.preventDefault();
     setSelectedWidget(widgetId);
@@ -132,6 +178,15 @@ export default function GridDashboard() {
 
     await deleteWidgetFromLayout(selectedWidget);
   };
+  
+  const [gridWidth, setGridWidth] = useState(window.innerWidth);
+  const columnWidth = 50; 
+
+  useEffect(() => {
+    const handleResize = () => setGridWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="relative w-full h-full" onClick={() => setShowContextMenu(false)}>
@@ -160,11 +215,16 @@ export default function GridDashboard() {
       <GridLayout
         className="layout"
         layout={layout}
-        cols={6}
+        cols={Math.floor(gridWidth / columnWidth)}
         rowHeight={50}
-        width={1200}
+        width={gridWidth} 
+        autoSize={true}        
+        verticalCompact={false} 
+        maxRows={Infinity}
         onLayoutChange={handleLayoutChange}
         draggableHandle=".drag-handle"
+        compactType={null}  
+        preventCollision={true} 
       >
         {layout.map((widget) => (
           <div 
