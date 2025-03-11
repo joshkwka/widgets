@@ -314,12 +314,12 @@ export const saveWidgetPreferences = async (widgetId: string, widgetType: string
         const existingPreferences = response.data.settings || {};
         console.log(`Existing preferences for widget ${widgetId}:`, existingPreferences);
 
-        // ✅ Merge new settings with existing settings
+        // Merge new settings with existing settings
         const mergedPreferences = { ...existingPreferences, ...newPreferences };
 
         console.log(`Updating preferences for widget ${widgetId} with:`, mergedPreferences);
 
-        // ✅ Send full payload including `widget_id` and `widget_type`
+        // Send full payload including `widget_id` and `widget_type`
         await axios.put(
             `${API_BASE_URL}/widget-preferences/${widgetId}/`,
             { 
@@ -358,10 +358,6 @@ export const saveWidgetPreferences = async (widgetId: string, widgetType: string
     }
 };
 
-
-
-
-
 export const deleteWidgetFromLayout = async (widgetId: string) => {
     const token = Cookies.get("access_token");
     if (!token) {
@@ -370,12 +366,14 @@ export const deleteWidgetFromLayout = async (widgetId: string) => {
     }
 
     try {
+        // Remove the widget from the layout
         await axios.delete(`${API_BASE_URL}/layouts/${widgetId}/`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
-        console.log(`Deleted widget ${widgetId}`);
+        console.log(`Deleted widget ${widgetId} from layout`);
 
+        // Then delete the widget preferences
         await axios.delete(`${API_BASE_URL}/widget-preferences/${widgetId}/`, {
             headers: { Authorization: `Bearer ${token}` },
         });
@@ -387,6 +385,7 @@ export const deleteWidgetFromLayout = async (widgetId: string) => {
         console.error(`Error deleting widget:`, err.message);
     }
 };
+
 
 
 export const fetchWidgetPreferences = async (widgetId: string): Promise<any | null> => {

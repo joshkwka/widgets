@@ -373,6 +373,25 @@ class LayoutViewSet(viewsets.ModelViewSet):
         layout.save()
 
         return Response({"message": "Widget added successfully", "widget": new_widget}, status=status.HTTP_201_CREATED)
+    
+    def destroy(self, request, pk=None):
+        """Delete a widget from the layout instead of the entire layout."""
+        user = request.user
+        widget_id = pk  # The widget's UUID
+
+        layout = get_object_or_404(Layout, user=user, name="default")
+
+        # Filter out the widget with the given id
+        updated_widgets = [w for w in layout.widgets if w["id"] != widget_id]
+
+        if len(updated_widgets) == len(layout.widgets):  
+            return Response({"error": "Widget not found in layout"}, status=status.HTTP_404_NOT_FOUND)
+
+        layout.widgets = updated_widgets
+        layout.save()
+
+        return Response({"message": f"Widget {widget_id} removed from layout"}, status=status.HTTP_204_NO_CONTENT)
+
         
 class WidgetPreferenceViewSet(viewsets.ModelViewSet):
     queryset = WidgetPreference.objects.all()

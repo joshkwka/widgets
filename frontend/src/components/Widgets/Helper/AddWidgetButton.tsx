@@ -42,13 +42,13 @@ export default function AddWidgetButton({
         </div>
 
         {/* Available Widgets */}
-        <div className="mb-4">
+        <div className="mb-4 z-50">
           <h3 className="text-md font-semibold text-[var(--foreground-light)]">Add a Widget:</h3>
           <div className="flex flex-col gap-2">
             {availableWidgets.map((widget) => (
               <button
                 key={widget.type}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-[var(--hover-blue)] transition"
+                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-[var(--hover-blue)] transition z-50"
                 onClick={() => {
                   onAddWidget(widget.type);
                   setShowModal(false);

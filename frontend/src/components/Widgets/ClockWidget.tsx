@@ -133,8 +133,20 @@ export default function ClockWidget({ id }: { id: string }) {
 
         {/* MAIN CONTAINER */}
         <div className="flex-grow flex items-center justify-center">
-          {analogMode ? <Clock value={time} size={size} /> : <span className="font-bold text-[var(--foreground)]">{time.toLocaleTimeString()}</span>}
+          {analogMode ? (
+            <Clock value={time} size={size} />
+          ) : (
+            <span
+              className="font-bold text-[var(--foreground)]"
+              style={{
+                fontSize: `${size * 0.25}px`, 
+              }}
+            >
+              {time.toLocaleTimeString("en-US", { timeZone: timezone || getUserTimezone() })}
+            </span>
+          )}
         </div>
+
       </div>
     </BaseWidget>
   );
