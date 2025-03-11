@@ -1,0 +1,18 @@
+.react-grid-item.react-grid-placeholder {
+    background-color: transparent;
+  }
+
+.react-clock__face {
+    border-color: var(--foreground);
+}
+
+.react-clock__mark__body {
+    background-color: var(--foreground);
+}
+.react-clock__hand__body {
+    background-color: var(--foreground);
+}
+
+.react-clock__second-hand__body {
+    background-color: red;
+}

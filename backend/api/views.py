@@ -2,12 +2,14 @@
 
 import json
 import jwt  
+import uuid
 
 from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -15,15 +17,16 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 
-from .models import User
-from .serializers import UserSerializer
+from .models import User, Layout, WidgetPreference
+from .serializers import LayoutSerializer, WidgetPreferenceSerializer, UserSerializer
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:3000"
@@ -334,3 +337,119 @@ class DeleteAccountView(APIView):
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
         return response
+
+# Widgets
+
+class LayoutViewSet(viewsets.ModelViewSet):
+    queryset = Layout.objects.all()
+    serializer_class = LayoutSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        """Handles adding new widgets to the layout."""
+        user = request.user
+        data = request.data
+
+        widget_type = data.get("type")
+        if not widget_type:
+            return Response({"error": "Widget type is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        widget_uuid = uuid.uuid4()  
+
+        new_widget = {
+            "id": str(widget_uuid),
+            "type": widget_type,
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2,
+        }
+
+        layout, _ = Layout.objects.get_or_create(user=user, name="default")
+        layout.widgets.append(new_widget)
+        layout.save()
+
+        return Response({"message": "Widget added successfully", "widget": new_widget}, status=status.HTTP_201_CREATED)
+    
+    def destroy(self, request, pk=None):
+        """Delete a widget from the layout instead of the entire layout."""
+        user = request.user
+        widget_id = pk  # The widget's UUID
+
+        layout = get_object_or_404(Layout, user=user, name="default")
+
+        # Filter out the widget with the given id
+        updated_widgets = [w for w in layout.widgets if w["id"] != widget_id]
+
+        if len(updated_widgets) == len(layout.widgets):  
+            return Response({"error": "Widget not found in layout"}, status=status.HTTP_404_NOT_FOUND)
+
+        layout.widgets = updated_widgets
+        layout.save()
+
+        return Response({"message": f"Widget {widget_id} removed from layout"}, status=status.HTTP_204_NO_CONTENT)
+
+        
+class WidgetPreferenceViewSet(viewsets.ModelViewSet):
+    queryset = WidgetPreference.objects.all()
+    serializer_class = WidgetPreferenceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "widget_id"  
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        widget_id = self.request.data.get("widget_id")
+        widget_type = self.request.data.get("widget_type")
+
+        if not widget_id:
+            raise ValidationError({"widget_id": ["This field is required."]})
+        if not widget_type:
+            raise ValidationError({"widget_type": ["This field is required."]})
+
+        try:
+            widget_uuid = uuid.UUID(widget_id)
+        except ValueError:
+            raise ValidationError({"widget_id": ["Invalid UUID format."]})
+
+        existing_preference = WidgetPreference.objects.filter(widget_id=str(widget_uuid)).first()
+        if existing_preference:
+            raise ValidationError({"widget_id": ["A preference already exists for this widget."]})
+
+        with transaction.atomic():  
+            serializer.save(user=self.request.user, widget_id=str(widget_uuid), widget_type=widget_type)
+        
+    def perform_update(self, serializer):
+        """Merge existing settings with new settings instead of overwriting."""
+        instance = serializer.instance 
+        new_settings = self.request.data.get("settings", {})
+
+        if not isinstance(new_settings, dict):
+            raise ValidationError({"settings": ["Invalid format. Must be a JSON object."]})
+
+        instance.settings.update(new_settings)
+        instance.save()
+
+        return Response(
+            {"message": "Preferences updated successfully", "settings": instance.settings},
+            status=status.HTTP_200_OK,
+        )
+    
+    def destroy(self, request, *args, **kwargs):
+        """Allow users to delete their own widget preferences"""
+        instance = self.get_object()
+        
+        # Ensure the user is deleting their own widget
+        if instance.user != request.user:
+            return Response(
+                {"error": "Unauthorized action"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        self.perform_destroy(instance)
+        return Response({"message": "Widget preference deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+

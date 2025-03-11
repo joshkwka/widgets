@@ -1,4 +1,5 @@
 import SidebarButton from "./components/SidebarButton";
+import GridLayout from "./components/GridDashboard"; 
 import { DarkModeProvider } from "context/DarkModeContext";
 import { AuthProvider } from "context/AuthContext";
 import { BrowserRouter as Router, useSearchParams, useNavigate } from "react-router-dom";
@@ -18,11 +19,9 @@ const AuthRedirect = () => {
                     await magicLogin(token);
 
                     if (Cookies.get("verification_success")) {
-                        // This is an email verification flow
                         window.dispatchEvent(new Event("email-verified"));
                         Cookies.remove("verification_success");
                     } else {
-                        // This is a password reset flow (normal magic login)
                         window.dispatchEvent(new Event("magic-login-success"));
                     }
 
@@ -44,11 +43,14 @@ function App() {
         <AuthProvider>
             <DarkModeProvider>
                 <Router>
-                    <div className="flex">
+                    <div className="flex h-screen">
+                        {/* Sidebar Button */}
                         <SidebarButton />
+
+                        {/* Grid Layout (Main Content) */}
                         <div className="flex-1 p-10">
                             <h1 className="text-3xl font-bold">Widgets</h1>
-                            <p className="text-gray-600">More content to be added.</p>
+                            <GridLayout /> 
                         </div>
                     </div>
                     <AuthRedirect />
