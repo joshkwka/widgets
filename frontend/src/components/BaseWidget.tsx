@@ -9,7 +9,7 @@ interface BaseWidgetProps {
 
 export default function BaseWidget({ id, defaultSettings, children }: BaseWidgetProps) {
   const widgetRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 200, height: 50 });
+  const [size, setSize] = useState({ width: 200, height:50 });
 
   useEffect(() => {
     const updateSize = () => {

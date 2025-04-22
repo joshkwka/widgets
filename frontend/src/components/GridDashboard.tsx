@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import "react-grid-layout/css/styles.css";
 import GridLayout, { Layout } from "react-grid-layout";
 import ClockWidget from "./Widgets/ClockWidget";
+import TodoWidget from "./Widgets/TodoWidget";
+import PomodoroWidget from "./Widgets/PomodoroWidget";
+import NotepadWidget from "./Widgets/NoteWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
+import CalculatorWidget from "./Widgets/CalculatorWidget";
 import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
 
 interface Widget {
@@ -121,7 +125,7 @@ export default function GridDashboard() {
         try {
           preferences = await fetchWidgetPreferences(newWidget.id);
         } catch (error) {
-          console.warn(`⚠️ Attempt ${attempts + 1}: Failed to fetch preferences for widget ${newWidget.id}`);
+          console.warn(`Attempt ${attempts + 1}: Failed to fetch preferences for widget ${newWidget.id}`);
         }
         if (!preferences) await new Promise((resolve) => setTimeout(resolve, 500));
         attempts++;
@@ -207,7 +211,7 @@ export default function GridDashboard() {
             onClick={deleteWidget} 
             className="block w-full text-left p-2 hover:bg-[var(--hover-gray)] transition"
           >
-            🗑️ Delete Widget
+           🗑️ 
           </button>
         </div>
       )}
@@ -233,6 +237,10 @@ export default function GridDashboard() {
             onContextMenu={(e) => handleRightClick(e, widget.i)}
           >
             {widget.type === "clock" && <ClockWidget id={widget.i} />}
+            {widget.type === "todo" && <TodoWidget id={widget.i} />}
+            {widget.type === "pomodoro" && <PomodoroWidget id={widget.i} />}
+            {widget.type === "notepad" && <NotepadWidget id={widget.i} />}
+            {widget.type === "calculator" && <CalculatorWidget id={widget.i}/>}
           </div>
         ))}
       </GridLayout>
