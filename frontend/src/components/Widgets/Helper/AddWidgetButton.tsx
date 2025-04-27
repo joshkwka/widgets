@@ -7,6 +7,7 @@ const availableWidgets = [
   { type: "pomodoro", name: "Pomodoro Timer" },
   { type: "notepad", name: "Notepad" },
   { type: "calculator", name: "Calculator" },
+  { type: "weather", name: "Weather" },
 ];
 
 export default function AddWidgetButton({ 
@@ -22,7 +23,7 @@ export default function AddWidgetButton({
     <>
       {/* "+" button */}
       <div
-        className="absolute top-4 right-4 text-2xl cursor-pointer text-[var(--text-dark)] hover:text-[var(--hover-blue)] transition"
+        className="fixed bottom-10 right-6 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--sidebar-background)] hover:bg-[var(--sidebar-hover-background)] z-20 shadow-lg"
         onClick={() => setShowModal(true)}
       >
         +

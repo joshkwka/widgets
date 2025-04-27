@@ -20,12 +20,12 @@ export default function TodoWidget({ id }: { id: string }) {
   const [editingTitle, setEditingTitle] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
+    const loadPreferences = async () => {
       const prefs = await fetchWidgetPreferences(id);
       setTodos(prefs.settings?.todos || []);
       setTitle(prefs.settings?.title || "To-Do List");
     };
-    load();
+    loadPreferences();
   }, [id]);
 
   const saveTodos = (updated: TodoItem[]) => {

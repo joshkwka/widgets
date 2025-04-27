@@ -75,7 +75,7 @@ export default function NotepadWidget({ id }: { id: string }) {
     <BaseWidget id={id} defaultSettings={{ notes: [], title: "Notepad" }}>
       <div className="w-full h-full flex flex-col gap-2">
         {/* Header */}
-        <div className="flex justify-between items-center px-3 py-2 border-b border-[var(--border)]">
+        <div className="relative px-3 py-2 border-b border-[var(--border)]">
           {editingTitle ? (
             <input
               className="text-md font-semibold bg-transparent border-b border-[var(--border)] text-[var(--foreground)] focus:outline-none"

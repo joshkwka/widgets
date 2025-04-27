@@ -7,6 +7,7 @@ import PomodoroWidget from "./Widgets/PomodoroWidget";
 import NotepadWidget from "./Widgets/NoteWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
 import CalculatorWidget from "./Widgets/CalculatorWidget";
+import WeatherWidget from "./Widgets/WeatherWidget";
 import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
 
 interface Widget {
@@ -217,7 +218,7 @@ export default function GridDashboard() {
       )}
 
       <GridLayout
-        className="layout"
+        className="layout mb-12"
         layout={layout}
         cols={Math.floor(gridWidth / columnWidth)}
         rowHeight={50}
@@ -241,9 +242,11 @@ export default function GridDashboard() {
             {widget.type === "pomodoro" && <PomodoroWidget id={widget.i} />}
             {widget.type === "notepad" && <NotepadWidget id={widget.i} />}
             {widget.type === "calculator" && <CalculatorWidget id={widget.i}/>}
+            {widget.type === "weather" && <WeatherWidget id={widget.i}/>}
           </div>
         ))}
       </GridLayout>
+      <div className="py-4"></div>
     </div>
   );
 }
