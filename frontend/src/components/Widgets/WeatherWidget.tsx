@@ -3,7 +3,7 @@ import BaseWidget from "../BaseWidget";
 import DragHandle from "./Helper/DragHandle";
 import { fetchWidgetPreferences, saveWidgetPreferences } from "../../api/auth";
 
-const apiKey = "5d0364083a60d315e157a00a5df9559f";
+const apiKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
 
 export default function WeatherWidget({ id }: { id: string }) {
   const [city, setCity] = useState("Honolulu"); // Default to Honolulu
