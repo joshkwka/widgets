@@ -8,6 +8,7 @@ const availableWidgets = [
   { type: "notepad", name: "Notepad" },
   { type: "calculator", name: "Calculator" },
   { type: "weather", name: "Weather" },
+  { type: "bookmarks", name: "Bookmarks" },
 ];
 
 export default function AddWidgetButton({ 

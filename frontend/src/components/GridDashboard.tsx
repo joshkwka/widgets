@@ -8,6 +8,7 @@ import NotepadWidget from "./Widgets/NoteWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
 import CalculatorWidget from "./Widgets/CalculatorWidget";
 import WeatherWidget from "./Widgets/WeatherWidget";
+import BookmarksWidget from "./Widgets/BookmarksWidget";
 import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
 
 interface Widget {
@@ -243,6 +244,7 @@ export default function GridDashboard() {
             {widget.type === "notepad" && <NotepadWidget id={widget.i} />}
             {widget.type === "calculator" && <CalculatorWidget id={widget.i}/>}
             {widget.type === "weather" && <WeatherWidget id={widget.i}/>}
+            {widget.type === "bookmarks" && <BookmarksWidget id={widget.i}/>}
           </div>
         ))}
       </GridLayout>
