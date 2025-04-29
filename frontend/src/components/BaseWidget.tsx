@@ -5,11 +5,15 @@ interface BaseWidgetProps {
   id: string;
   defaultSettings: object;
   children?: ReactNode;
+  defaultWidth?: number;
+  defaultHeight?: number;
 }
 
-export default function BaseWidget({ id, defaultSettings, children }: BaseWidgetProps) {
+export default function BaseWidget({ id, defaultSettings, children, defaultWidth, defaultHeight }: BaseWidgetProps) {
   const widgetRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 200, height:50 });
+  const [size, setSize] = useState({ 
+    width: defaultWidth ?? 200, 
+    height: defaultHeight ?? 50 });
 
   useEffect(() => {
     const updateSize = () => {

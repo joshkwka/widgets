@@ -173,7 +173,9 @@ export default function GridDashboard() {
     event.preventDefault();
     setSelectedWidget(widgetId);
     setShowContextMenu(true);
-    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    setContextMenuPosition({ 
+      x: event.clientX + window.scrollX - 85, 
+      y: event.clientY + window.scrollY - 110 });
   };
 
   const deleteWidget = async () => {
