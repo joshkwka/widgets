@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import "react-grid-layout/css/styles.css";
 import GridLayout, { Layout } from "react-grid-layout";
 import ClockWidget from "./Widgets/ClockWidget";
+import TodoWidget from "./Widgets/TodoWidget";
+import PomodoroWidget from "./Widgets/PomodoroWidget";
+import NotepadWidget from "./Widgets/NoteWidget";
 import AddWidgetButton from "./Widgets/Helper/AddWidgetButton";
+import CalculatorWidget from "./Widgets/CalculatorWidget";
+import WeatherWidget from "./Widgets/WeatherWidget";
+import BookmarksWidget from "./Widgets/BookmarksWidget";
 import { fetchUserWidgets, fetchWidgetPreferences, saveWidgetPreferences, addWidgetToLayout, deleteWidgetFromLayout } from "../api/auth";
 
 interface Widget {
@@ -121,7 +127,7 @@ export default function GridDashboard() {
         try {
           preferences = await fetchWidgetPreferences(newWidget.id);
         } catch (error) {
-          console.warn(`⚠️ Attempt ${attempts + 1}: Failed to fetch preferences for widget ${newWidget.id}`);
+          console.warn(`Attempt ${attempts + 1}: Failed to fetch preferences for widget ${newWidget.id}`);
         }
         if (!preferences) await new Promise((resolve) => setTimeout(resolve, 500));
         attempts++;
@@ -167,7 +173,9 @@ export default function GridDashboard() {
     event.preventDefault();
     setSelectedWidget(widgetId);
     setShowContextMenu(true);
-    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    setContextMenuPosition({ 
+      x: event.clientX + window.scrollX - 85, 
+      y: event.clientY + window.scrollY - 110 });
   };
 
   const deleteWidget = async () => {
@@ -207,13 +215,13 @@ export default function GridDashboard() {
             onClick={deleteWidget} 
             className="block w-full text-left p-2 hover:bg-[var(--hover-gray)] transition"
           >
-            🗑️ Delete Widget
+           🗑️ 
           </button>
         </div>
       )}
 
       <GridLayout
-        className="layout"
+        className="layout mb-12"
         layout={layout}
         cols={Math.floor(gridWidth / columnWidth)}
         rowHeight={50}
@@ -233,9 +241,16 @@ export default function GridDashboard() {
             onContextMenu={(e) => handleRightClick(e, widget.i)}
           >
             {widget.type === "clock" && <ClockWidget id={widget.i} />}
+            {widget.type === "todo" && <TodoWidget id={widget.i} />}
+            {widget.type === "pomodoro" && <PomodoroWidget id={widget.i} />}
+            {widget.type === "notepad" && <NotepadWidget id={widget.i} />}
+            {widget.type === "calculator" && <CalculatorWidget id={widget.i}/>}
+            {widget.type === "weather" && <WeatherWidget id={widget.i}/>}
+            {widget.type === "bookmarks" && <BookmarksWidget id={widget.i}/>}
           </div>
         ))}
       </GridLayout>
+      <div className="py-4"></div>
     </div>
   );
 }

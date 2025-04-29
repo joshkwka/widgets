@@ -46,8 +46,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   // Function to render the correct modal content component
   const renderModalContent = () => {
     switch (modalContent) {
-      case "Settings":
-        return <ModalSettings />;
+      // case "Settings":
+      //   return <ModalSettings />;
       case "Calendar":
         return <ModalCalendar />;
       case "Login":
@@ -100,12 +100,12 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         >
           Calendar
         </button>
-        <button
+        {/* <button
           className="p-2 my-2 rounded transition w-full"
           onClick={() => openModal("Settings", "Settings")}
         >
           Settings
-        </button>
+        </button> */}
 
         {/* Login/Profile Button */}
         <button
